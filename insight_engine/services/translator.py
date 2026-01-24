@@ -15,6 +15,9 @@ def translate_texts(
 
     Returns the original texts unchanged if translation is unavailable or fails.
     """
+    if target_language.lower().startswith("en"):
+        return texts
+
     if not settings.azure_translator_key:
         logger.warning("No Azure Translator key configured; skipping translation")
         return texts
