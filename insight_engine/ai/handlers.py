@@ -1,17 +1,20 @@
 import json
 import logging
 
-from openai import OpenAI
-
 from insight_engine.ai.prompts import INSIGHT_PROMPT_TEMPLATE, SYSTEM_PROMPT, build_user_context
 from insight_engine.config import settings
 from insight_engine.domain.entities import Insight, UserProfile
+from insight_engine.ports import LLMProvider
 
 logger = logging.getLogger(__name__)
 
 
-def generate_explanation(insight: Insight, user_profile: UserProfile | None = None) -> Insight:
-    """Use OpenAI to generate natural language explanation for an insight.
+def generate_explanation(
+    insight: Insight,
+    user_profile: UserProfile | None = None,
+    provider: LLMProvider | None = None,
+) -> Insight:
+    """Use an LLM to generate natural language explanation for an insight.
 
     Mutates and returns the insight with scenario, risks, and explanation filled in.
     """
@@ -21,6 +24,10 @@ def generate_explanation(insight: Insight, user_profile: UserProfile | None = No
         insight.risks = _fallback_risks(insight)
         insight.explanation = "Configure OPENAI_API_KEY to enable natural language explanations."
         return insight
+
+    if provider is None:
+        from insight_engine.providers import get_llm_provider
+        provider = get_llm_provider()
 
     user_context = build_user_context(user_profile)
     metrics = insight.metrics
@@ -47,24 +54,14 @@ def generate_explanation(insight: Insight, user_profile: UserProfile | None = No
     )
 
     try:
-        client = OpenAI(api_key=settings.openai_api_key)
-        response = client.chat.completions.create(
-            model=settings.openai_model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.7,
-            max_tokens=500,
-        )
-        content = response.choices[0].message.content
+        content = provider.generate(SYSTEM_PROMPT, prompt)
         parsed = json.loads(content)
 
         insight.scenario = parsed.get("scenario", "")
         insight.risks = parsed.get("risks", [])[:3]
         insight.explanation = parsed.get("explanation", "")
     except Exception as e:
-        logger.error(f"OpenAI API error: {e}")
+        logger.error(f"LLM provider error: {e}")
         insight.scenario = "Unable to generate AI explanation at this time."
         insight.risks = _fallback_risks(insight)
         insight.explanation = ""

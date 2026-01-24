@@ -1,4 +1,5 @@
 from insight_engine.domain.entities import DimensionResults, Insight, MetricsSummary, UserProfile
+from insight_engine.ports import MarketDataProvider
 from insight_engine.rules.fundamentals_rules import evaluate_fundamentals
 from insight_engine.rules.horizon_rules import determine_horizon
 from insight_engine.rules.market_context_rules import evaluate_market_context
@@ -6,19 +7,22 @@ from insight_engine.rules.risk_rules import evaluate_risk
 from insight_engine.rules.synthesis import synthesize_state
 from insight_engine.rules.trend_rules import evaluate_trend
 from insight_engine.rules.valuation_rules import evaluate_valuation
-from insight_engine.services.data_provider import (
-    fetch_sp500_data,
-    fetch_ticker_data,
-    fetch_ticker_info,
-)
 from insight_engine.services.metrics import calculate_metrics
 
 
-def analyze_asset(ticker: str, user_profile: UserProfile | None = None) -> Insight:
+def analyze_asset(
+    ticker: str,
+    user_profile: UserProfile | None = None,
+    market_data_provider: MarketDataProvider | None = None,
+) -> Insight:
     """Run the full analysis pipeline for a single asset."""
-    hist = fetch_ticker_data(ticker)
-    info = fetch_ticker_info(ticker)
-    sp500_hist = fetch_sp500_data()
+    if market_data_provider is None:
+        from insight_engine.providers import get_market_data_provider
+        market_data_provider = get_market_data_provider()
+
+    hist = market_data_provider.fetch_history(ticker)
+    info = market_data_provider.fetch_info(ticker)
+    sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
 
     metrics = calculate_metrics(hist, info, sp500_hist)
     dimensions = evaluate_dimensions(metrics)

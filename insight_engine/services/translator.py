@@ -1,15 +1,17 @@
 import logging
-import uuid
-
-import requests
 
 from insight_engine.config import settings
+from insight_engine.ports import TranslatorProvider
 
 logger = logging.getLogger(__name__)
 
 
-def translate_texts(texts: list[str], target_language: str) -> list[str]:
-    """Translate a list of texts to the target language using Azure Translator.
+def translate_texts(
+    texts: list[str],
+    target_language: str,
+    provider: TranslatorProvider | None = None,
+) -> list[str]:
+    """Translate a list of texts to the target language.
 
     Returns the original texts unchanged if translation is unavailable or fails.
     """
@@ -20,31 +22,14 @@ def translate_texts(texts: list[str], target_language: str) -> list[str]:
     if not texts:
         return texts
 
-    path = "/translate"
-    url = settings.azure_translator_endpoint + path
-
-    params = {
-        "api-version": "3.0",
-        "from": "en",
-        "to": [target_language],
-    }
-
-    headers = {
-        "Ocp-Apim-Subscription-Key": settings.azure_translator_key,
-        "Ocp-Apim-Subscription-Region": settings.azure_translator_region,
-        "Content-type": "application/json",
-        "X-ClientTraceId": str(uuid.uuid4()),
-    }
-
-    body = [{"text": text} for text in texts]
+    if provider is None:
+        from insight_engine.providers import get_translator_provider
+        provider = get_translator_provider()
 
     try:
-        response = requests.post(url, params=params, headers=headers, json=body, timeout=10)
-        response.raise_for_status()
-        result = response.json()
-        return [item["translations"][0]["text"] for item in result]
+        return provider.translate(texts, target_language)
     except Exception as e:
-        logger.error(f"Azure Translator error: {e}")
+        logger.error(f"Translation error: {e}")
         return texts
 
 
