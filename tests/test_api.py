@@ -66,11 +66,14 @@ def test_health_check():
     assert response.json() == {"status": "ok"}
 
 
+@patch("insight_engine.api.asset_routes.resolve_alternatives")
+@patch("insight_engine.api.asset_routes.prepare_alternatives_context", return_value=None)
+@patch("insight_engine.api.asset_routes.get_market_data_provider")
 @patch("insight_engine.api.asset_routes.generate_explanation")
 @patch("insight_engine.api.asset_routes.analyze_asset")
-def test_analyze_asset_endpoint(mock_analyze, mock_explain):
+def test_analyze_asset_endpoint(mock_analyze, mock_explain, mock_provider, mock_prepare, mock_resolve):
     insight = _mock_insight()
-    mock_analyze.return_value = insight
+    mock_analyze.return_value = (insight, {"quoteType": "EQUITY", "sector": "Technology"})
     mock_explain.return_value = insight
 
     response = client.post(
@@ -89,11 +92,14 @@ def test_analyze_asset_endpoint(mock_analyze, mock_explain):
     assert len(data["risks"]) <= 3
 
 
+@patch("insight_engine.api.asset_routes.resolve_alternatives")
+@patch("insight_engine.api.asset_routes.prepare_alternatives_context", return_value=None)
+@patch("insight_engine.api.asset_routes.get_market_data_provider")
 @patch("insight_engine.api.asset_routes.generate_explanation")
 @patch("insight_engine.api.asset_routes.analyze_asset")
-def test_analyze_asset_without_profile(mock_analyze, mock_explain):
+def test_analyze_asset_without_profile(mock_analyze, mock_explain, mock_provider, mock_prepare, mock_resolve):
     insight = _mock_insight("MSFT")
-    mock_analyze.return_value = insight
+    mock_analyze.return_value = (insight, {"quoteType": "EQUITY"})
     mock_explain.return_value = insight
 
     response = client.post("/assets/analyze", json={"ticker": "MSFT"})
@@ -101,10 +107,13 @@ def test_analyze_asset_without_profile(mock_analyze, mock_explain):
     assert response.json()["ticker"] == "MSFT"
 
 
+@patch("insight_engine.api.portfolio_routes.resolve_alternatives")
+@patch("insight_engine.api.portfolio_routes.prepare_alternatives_context", return_value=None)
+@patch("insight_engine.api.portfolio_routes.get_market_data_provider")
 @patch("insight_engine.api.portfolio_routes.generate_explanation")
 @patch("insight_engine.api.portfolio_routes.analyze_asset")
-def test_analyze_portfolio_endpoint(mock_analyze, mock_explain):
-    mock_analyze.side_effect = lambda ticker, *a, **kw: _mock_insight(ticker.upper())
+def test_analyze_portfolio_endpoint(mock_analyze, mock_explain, mock_provider, mock_prepare, mock_resolve):
+    mock_analyze.side_effect = lambda ticker, *a, **kw: (_mock_insight(ticker.upper()), {"quoteType": "EQUITY"})
     mock_explain.side_effect = lambda insight, *a, **kw: insight
 
     response = client.post(

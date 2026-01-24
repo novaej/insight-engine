@@ -146,13 +146,92 @@ Each insight should list **a maximum of 3 risks**, derived mechanically from the
 
 ## 9. Alternatives
 
-The system may suggest alternatives:
+The system suggests 1–3 alternative assets when the current asset scores poorly or presents news-driven risks. Alternatives are **not investment recommendations**, only relative comparisons based on deterministic rules.
 
-- Lower risk
-- Better valuation
-- Consistent with the user profile
+### 9.1 Portfolio Role Classification
 
-**Note:** Alternatives **are not investment recommendations**, only relative comparisons.
+Each asset is classified into a **portfolio role** used to find comparable candidates:
+
+| Role | Classification Logic |
+|------|---------------------|
+| `US_LARGE_CAP_CORE` | Large blend ETFs, S&P 500 ETFs, stocks with marketCap > $50B in non-specialized sectors |
+| `GROWTH_TECH` | Technology/growth ETFs, stocks in Technology or Communication Services sectors |
+| `DIVIDEND_INCOME` | Dividend/income/yield ETFs, stocks with dividendYield > 3% |
+| `DEFENSIVE` | Utilities/consumer defensive/health ETFs, stocks in Utilities/Consumer Defensive/Healthcare |
+| `EMERGING_MARKETS` | Emerging/developing market ETFs |
+| `BONDS_STABILITY` | Bond/fixed income/treasury ETFs |
+
+- ETFs are classified by `category` keyword matching, then `fundFamily` fallback.
+- Stocks are classified by `sector`, then `dividendYield`, then `marketCap`.
+- Default fallback: `US_LARGE_CAP_CORE`.
+
+### 9.2 Health Score (0–100)
+
+Measures the overall quality of an asset's current state:
+
+| Component | Values | Points |
+|-----------|--------|--------|
+| Trend | bullish=25, sideways=15, bearish=0 | /25 |
+| Fundamentals | strong=25, mixed=15, weak=0 | /25 |
+| Valuation | cheap=20, reasonable=15, expensive=5, inconclusive=10 | /20 |
+| Risk Level | low=15, medium=10, high=0 | /15 |
+| Drawdown | > -15%: 15, > -30%: 8, else: 0 | /15 |
+
+**Penalty:** If `debt_to_equity > 2.0`, subtract 5 points (floor at 0).
+
+### 9.3 Profile Fit Score (0–100)
+
+Measures alignment between the asset and the user's risk profile:
+
+| Component | Logic | Points |
+|-----------|-------|--------|
+| Volatility alignment | annualized_volatility ≤ threshold: 40; ≤ 1.5× threshold: 20; else: 0 | /40 |
+| Drawdown alignment | max_drawdown ≥ threshold: 30; ≥ 1.5× threshold: 15; else: 0 | /30 |
+| Horizon alignment | match=30, adjacent=15, mismatch or not_recommended=0 | /30 |
+
+**Volatility thresholds by risk profile:**
+- low: 15%
+- moderate: 25%
+- high: 40%
+
+**Drawdown thresholds by risk profile:**
+- low: -10%
+- moderate: -20%
+- high: -35%
+
+### 9.4 News Risk Flags
+
+Binary flags extracted from recent news headlines via keyword matching (no AI):
+
+| Flag | Keywords |
+|------|----------|
+| `regulatory_risk` | regulatory, regulation, sec, antitrust, fine, fined, compliance, sanctions, investigation, probe, subpoena |
+| `earnings_negative` | misses, missed, disappoints, downgrade, loss, losses, decline, slump, warning, profit warning, revenue miss, below expectations, guidance cut |
+| `management_change` | ceo resign, ceo steps down, ceo fired, ceo departure, cfo resign, cfo steps down, management shakeup, executive leaves, leadership change, board ousts |
+| `litigation_risk` | lawsuit, sued, litigation, class action, settlement, legal action, court ruling, damages, plaintiff, defendant |
+
+All headline titles are lowercased and concatenated for matching.
+
+### 9.5 Trigger Conditions
+
+Alternatives are triggered when **any** of these conditions are met:
+- Health score < 50
+- Profile fit score < 50
+- Any news risk flag is `True`
+
+### 9.6 Candidate Selection and Filtering
+
+**Candidate sources:**
+1. **AI-driven** (`use_ai=True`): The LLM suggests 3–5 candidates in the same portfolio role; each candidate is then validated with real market metrics.
+2. **JSON fallback** (`use_ai=False` or AI fails): Static `config/candidate_universe.json` mapping from role → ticker list.
+
+**Hard filters (exclude candidate if):**
+- `annualized_volatility` > user's risk threshold
+- `max_drawdown` < user's drawdown threshold (more negative)
+
+**Ranking:** By health score descending.
+
+**Output:** Top 3 candidates after filtering.
 
 ---
 

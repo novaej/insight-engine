@@ -122,12 +122,41 @@ Examples:
 ---
 
 ## 13. Alternative
-Comparable asset that, under current rules, presents a profile  
-more aligned with the user.
+Comparable asset that, under current rules, presents a profile more aligned with the user. Alternatives are triggered deterministically (scores and news flags) and are never investment recommendations.
 
 ---
 
-## 14. Insight
+## 14. Portfolio Role
+Classification of an asset's function within a portfolio.
+
+Values:
+- US_LARGE_CAP_CORE
+- GROWTH_TECH
+- DIVIDEND_INCOME
+- DEFENSIVE
+- EMERGING_MARKETS
+- BONDS_STABILITY
+
+Used to find comparable candidates when alternatives are triggered.
+
+---
+
+## 15. Health Score
+A 0–100 score measuring the overall quality of an asset's current state, derived from trend, fundamentals, valuation, risk level, and drawdown.
+
+---
+
+## 16. Profile Fit Score
+A 0–100 score measuring how well an asset aligns with the user's risk profile, considering volatility tolerance, drawdown tolerance, and horizon alignment.
+
+---
+
+## 17. News Flags
+Binary risk signals extracted from recent news headlines via keyword matching (no AI). Four flags: regulatory_risk, earnings_negative, management_change, litigation_risk.
+
+---
+
+## 18. Insight
 Minimum unit of value delivered to the user.
 
 An insight includes:
@@ -136,13 +165,17 @@ An insight includes:
 - horizon
 - risks
 - natural language explanation
+- portfolio role (optional)
+- health score (optional)
+- profile fit score (optional)
+- alternatives (optional, when triggered)
 
 ---
 
-## 15. Parabolic SAR
+## 19. Parabolic SAR
 A trend-following indicator (Stop and Reverse) calculated using Wilder's algorithm. Used as a confirming signal for the SMA-based trend evaluation. When price is above SAR, the signal is bullish; when below, bearish. Parameters: initial AF = 0.02, step = 0.02, max AF = 0.20.
 
 ---
 
-## 16. Translation
+## 20. Translation
 The process of converting AI-generated text (scenario, explanation, risks, summary) into the user's preferred language. Powered by Azure Translator. Specified via a `language` parameter (ISO code, e.g. `es`, `fr`, `pt`). English is the default and requires no translation.

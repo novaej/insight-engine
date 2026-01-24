@@ -15,7 +15,7 @@ def run_daily_analysis(tickers: list[str]) -> list[dict]:
     results = []
     for ticker in tickers:
         try:
-            insight = analyze_asset(ticker)
+            insight, _info = analyze_asset(ticker)
             insight = generate_explanation(insight)
             results.append({
                 "ticker": insight.ticker,

@@ -61,3 +61,12 @@ class InvestmentObjective(str, Enum):
     growth = "growth"
     income = "income"
     capital_protection = "capital_protection"
+
+
+class PortfolioRole(str, Enum):
+    US_LARGE_CAP_CORE = "US_LARGE_CAP_CORE"
+    GROWTH_TECH = "GROWTH_TECH"
+    DIVIDEND_INCOME = "DIVIDEND_INCOME"
+    DEFENSIVE = "DEFENSIVE"
+    EMERGING_MARKETS = "EMERGING_MARKETS"
+    BONDS_STABILITY = "BONDS_STABILITY"

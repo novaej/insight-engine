@@ -1,0 +1,8 @@
+{
+  "US_LARGE_CAP_CORE": ["SPY", "VOO", "IVV", "MSFT", "AAPL", "JNJ"],
+  "GROWTH_TECH": ["QQQ", "VGT", "MSFT", "AAPL", "GOOGL", "AMZN"],
+  "DIVIDEND_INCOME": ["VYM", "SCHD", "HDV", "JNJ", "PG", "KO"],
+  "DEFENSIVE": ["XLU", "XLP", "VHT", "JNJ", "PG", "WMT"],
+  "EMERGING_MARKETS": ["VWO", "EEM", "IEMG"],
+  "BONDS_STABILITY": ["BND", "AGG", "TLT", "VCIT", "LQD"]
+}

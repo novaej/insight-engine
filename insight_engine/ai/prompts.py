@@ -44,6 +44,54 @@ Provide your response in the following JSON format:
   "explanation": "A 3-5 sentence educational explanation of what this means for the investor"
 }}"""
 
+INSIGHT_WITH_ALTERNATIVES_PROMPT_TEMPLATE = """\
+Analyze the following asset state and provide an educational explanation.
+Additionally, suggest alternative assets that may better fit the investor's profile.
+
+Ticker: {ticker}
+Asset State: {asset_state}
+Trend: {trend}
+Valuation: {valuation}
+Fundamentals: {fundamentals}
+Risk Level: {risk_level}
+Market Context: {market_context}
+Horizon: {horizon}
+
+Key Metrics:
+- Current Price: {current_price}
+- SMA 50: {sma_50}
+- SMA 200: {sma_200}
+- P/E Ratio: {pe_ratio}
+- Revenue Growth: {revenue_growth}
+- Profit Margin: {profit_margin}
+- Debt/Equity: {debt_to_equity}
+- Volatility (annualized): {volatility}
+- Max Drawdown: {max_drawdown}
+
+{user_context}
+
+Alternatives Context:
+- Health Score: {health_score}/100
+- Profile Fit Score: {profile_fit_score}/100
+- Portfolio Role: {portfolio_role}
+- Trigger Reasons: {trigger_reasons}
+{news_flags_context}
+
+Suggest 3-5 alternative tickers in the same portfolio role that may be more suitable.
+For each alternative, provide a one-line educational reason (not a recommendation).
+NEVER use prescriptive language—describe characteristics, not actions.
+
+Provide your response in the following JSON format:
+{{
+  "scenario": "A 1-2 sentence description of the most likely scenario without price predictions",
+  "risks": ["risk1", "risk2", "risk3"],
+  "explanation": "A 3-5 sentence educational explanation of what this means for the investor",
+  "alternatives": [
+    {{"ticker": "TICKER1", "reason": "One-line educational reason"}},
+    {{"ticker": "TICKER2", "reason": "One-line educational reason"}}
+  ]
+}}"""
+
 
 def build_user_context(user_profile) -> str:
     if user_profile is None:

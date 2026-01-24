@@ -49,6 +49,18 @@ class MetricsResponse(BaseModel):
     max_drawdown: float | None = None
 
 
+class AlternativeResponse(BaseModel):
+    ticker: str
+    health_score: int | None = None
+    reason: str = ""
+
+
+class AlternativesResponse(BaseModel):
+    triggered: bool
+    trigger_reasons: list[str] = []
+    suggestions: list[AlternativeResponse] = []
+
+
 class InsightResponse(BaseModel):
     ticker: str
     asset_state: AssetState
@@ -58,6 +70,10 @@ class InsightResponse(BaseModel):
     scenario: str
     risks: list[str]
     explanation: str
+    portfolio_role: str | None = None
+    health_score: int | None = None
+    profile_fit_score: int | None = None
+    alternatives: AlternativesResponse | None = None
 
 
 class PortfolioAsset(BaseModel):

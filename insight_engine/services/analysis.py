@@ -14,8 +14,12 @@ def analyze_asset(
     ticker: str,
     user_profile: UserProfile | None = None,
     market_data_provider: MarketDataProvider | None = None,
-) -> Insight:
-    """Run the full analysis pipeline for a single asset."""
+) -> tuple[Insight, dict]:
+    """Run the full analysis pipeline for a single asset.
+
+    Returns a tuple of (Insight, info_dict) where info_dict is the raw
+    asset info from the market data provider.
+    """
     if market_data_provider is None:
         from insight_engine.providers import get_market_data_provider
         market_data_provider = get_market_data_provider()
@@ -29,13 +33,14 @@ def analyze_asset(
     asset_state = synthesize_state(dimensions)
     horizon = determine_horizon(asset_state, dimensions, user_profile)
 
-    return Insight(
+    insight = Insight(
         ticker=ticker.upper(),
         asset_state=asset_state,
         dimensions=dimensions,
         metrics=metrics,
         horizon=horizon,
     )
+    return insight, info
 
 
 def evaluate_dimensions(metrics: MetricsSummary) -> DimensionResults:

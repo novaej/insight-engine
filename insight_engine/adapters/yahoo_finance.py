@@ -10,3 +10,7 @@ class YahooFinanceProvider:
     def fetch_info(self, ticker: str) -> dict:
         t = yf.Ticker(ticker)
         return t.info
+
+    def fetch_news(self, ticker: str) -> list[dict]:
+        t = yf.Ticker(ticker)
+        return t.news or []

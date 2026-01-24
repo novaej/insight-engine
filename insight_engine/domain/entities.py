@@ -6,6 +6,7 @@ from insight_engine.domain.enums import (
     Horizon,
     InvestmentObjective,
     MarketContext,
+    PortfolioRole,
     RiskLevel,
     RiskProfile,
     Trend,
@@ -46,6 +47,34 @@ class MetricsSummary:
 
 
 @dataclass
+class AssetScores:
+    health_score: int
+    profile_fit_score: int
+
+
+@dataclass
+class NewsFlags:
+    regulatory_risk: bool = False
+    earnings_negative: bool = False
+    management_change: bool = False
+    litigation_risk: bool = False
+
+
+@dataclass
+class AlternativeSuggestion:
+    ticker: str
+    health_score: int | None = None
+    reason: str = ""
+
+
+@dataclass
+class AlternativesResult:
+    triggered: bool
+    trigger_reasons: list[str] = field(default_factory=list)
+    suggestions: list[AlternativeSuggestion] = field(default_factory=list)
+
+
+@dataclass
 class Insight:
     ticker: str
     asset_state: AssetState
@@ -55,3 +84,7 @@ class Insight:
     scenario: str = ""
     risks: list[str] = field(default_factory=list)
     explanation: str = ""
+    portfolio_role: PortfolioRole | None = None
+    scores: AssetScores | None = None
+    news_flags: NewsFlags | None = None
+    alternatives: AlternativesResult | None = None

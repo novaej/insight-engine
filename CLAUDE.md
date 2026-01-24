@@ -50,9 +50,12 @@ insight_engine/
 ├── api/          # FastAPI routes and endpoints
 ├── domain/       # Domain models and Pydantic schemas
 ├── rules/        # Deterministic business rules (no AI)
+├── services/     # Orchestration (analysis, alternatives, metrics, translation)
 ├── ai/           # LLM prompts and handlers (interpretation only)
+├── adapters/     # External integrations (Yahoo Finance, OpenAI, Azure)
 ├── jobs/         # Scheduled tasks (daily analysis jobs)
-tests/            # Unit tests (metrics, rules, endpoints)
+config/           # Static configuration (candidate_universe.json)
+tests/            # Unit tests (metrics, rules, endpoints, alternatives)
 ```
 
 ### Layer 1: Metrics/Calculations (Technical)
@@ -78,8 +81,15 @@ These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `
 - Conflicting signals → prioritize most conservative
 - Insufficient clarity → `neutral`
 
+### Layer 2b: Scoring & Alternatives (Deterministic)
+Built on top of dimensions, computing:
+- **Health Score** (0–100): Composite of trend, fundamentals, valuation, risk, and drawdown
+- **Profile Fit Score** (0–100): Volatility/drawdown/horizon alignment with user profile
+- **News Flags**: Keyword-based risk extraction from headlines (no AI)
+- **Alternative Suggestions**: Triggered when health < 50, profile fit < 50, or news flags active. Candidates filtered by risk tolerance, ranked by health score, max 3 returned.
+
 ### Layer 3: AI Interpretation (LLM)
-Receives only processed states and metrics. Explains and contextualizes results in natural language. Cannot issue orders or price targets. Maximum 3 signals or risks per insight.
+Receives only processed states and metrics. Explains and contextualizes results in natural language. Cannot issue orders or price targets. Maximum 3 signals or risks per insight. When alternatives are triggered, a merged prompt requests both explanation and candidate suggestions in one call.
 
 ### Translation Layer
 AI-generated text (scenario, explanation, risks, summary) can be translated into any supported language via Azure Translator. Activated by passing a `language` parameter (ISO code) to analysis endpoints. English is the default and skips translation.
@@ -88,9 +98,12 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 
 - **User Profile:** risk (low|moderate|high) + horizon (short|medium|long) + objective (growth|income|capital_protection). Modulates interpretation, not base rules.
 - **Portfolio:** Persisted set of assets. Upserted on `POST /portfolio/analyze`, retrievable via `GET /portfolio`, updatable via `PUT /portfolio`. Stores overall risk and summary alongside linked insights.
-- **Insight:** The minimum unit of value—includes asset state, scenario, horizon, risks, and natural language explanation.
+- **Insight:** The minimum unit of value—includes asset state, scenario, horizon, risks, explanation, plus optional scores and alternatives.
 - **Scenario:** Narrative of likely behavior without price predictions or timing.
-- **Alternative:** Comparable asset more aligned with the user's profile (not a recommendation).
+- **Portfolio Role:** Classification of an asset's function (US_LARGE_CAP_CORE, GROWTH_TECH, DIVIDEND_INCOME, DEFENSIVE, EMERGING_MARKETS, BONDS_STABILITY). Used for candidate discovery.
+- **Health Score / Profile Fit Score:** Deterministic 0–100 scores measuring asset quality and user-profile alignment respectively.
+- **News Flags:** Binary risk signals (regulatory, earnings, management, litigation) extracted from headlines via keyword matching.
+- **Alternative:** Comparable asset more aligned with the user's profile (not a recommendation). Triggered by low scores or news flags, resolved via AI candidates (validated) or JSON config fallback.
 - **Parabolic SAR:** Trend-confirming indicator (Wilder's algorithm, AF 0.02→0.20). Confirms or moderates SMA-based trend signals.
 
 ## MVP Constraints

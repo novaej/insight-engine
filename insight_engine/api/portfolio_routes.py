@@ -3,8 +3,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from insight_engine.ai.handlers import generate_explanation
-from insight_engine.api.asset_routes import _to_record
+from insight_engine.api.asset_routes import _build_insight_response, _to_record
 from insight_engine.api.schemas import (
+    AlternativeResponse,
+    AlternativesResponse,
     DimensionsResponse,
     InsightResponse,
     MetricsResponse,
@@ -27,40 +29,12 @@ from insight_engine.domain.enums import (
     Valuation,
 )
 from insight_engine.domain.models import InsightRecord, Portfolio
+from insight_engine.providers import get_market_data_provider
+from insight_engine.services.alternatives import prepare_alternatives_context, resolve_alternatives
 from insight_engine.services.analysis import analyze_asset
 from insight_engine.services.translator import translate_insight, translate_texts
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
-
-
-def _build_insight_response(i: Insight) -> InsightResponse:
-    return InsightResponse(
-        ticker=i.ticker,
-        asset_state=i.asset_state,
-        dimensions=DimensionsResponse(
-            trend=i.dimensions.trend,
-            valuation=i.dimensions.valuation,
-            fundamentals=i.dimensions.fundamentals,
-            risk_level=i.dimensions.risk_level,
-            market_context=i.dimensions.market_context,
-        ),
-        metrics=MetricsResponse(
-            current_price=i.metrics.current_price,
-            sma_50=i.metrics.sma_50,
-            sma_200=i.metrics.sma_200,
-            parabolic_sar=i.metrics.parabolic_sar,
-            pe_ratio=i.metrics.pe_ratio,
-            revenue_growth=i.metrics.revenue_growth,
-            profit_margin=i.metrics.profit_margin,
-            debt_to_equity=i.metrics.debt_to_equity,
-            annualized_volatility=i.metrics.annualized_volatility,
-            max_drawdown=i.metrics.max_drawdown,
-        ),
-        horizon=i.horizon,
-        scenario=i.scenario,
-        risks=i.risks,
-        explanation=i.explanation,
-    )
 
 
 async def _run_analysis(
@@ -72,14 +46,30 @@ async def _run_analysis(
     portfolio_id: int,
 ) -> tuple[list[Insight], RiskLevel, str]:
     """Run analysis on all assets, persist insights, and return results."""
+    market_data_provider = get_market_data_provider()
     insights: list[Insight] = []
     for asset in assets:
         try:
-            insight = analyze_asset(asset.ticker, user_profile)
+            insight, info = analyze_asset(asset.ticker, user_profile, market_data_provider)
+
+            # Prepare alternatives context
+            alternatives_ctx = prepare_alternatives_context(
+                insight, info, user_profile, market_data_provider
+            )
+
             if use_ai:
-                insight = generate_explanation(insight, user_profile)
+                insight = generate_explanation(
+                    insight, user_profile, alternatives_context=alternatives_ctx
+                )
                 if language:
                     translate_insight(insight, language)
+
+            # Resolve alternatives if triggered
+            if alternatives_ctx:
+                resolve_alternatives(
+                    insight, user_profile, market_data_provider, alternatives_ctx, use_ai
+                )
+
             insights.append(insight)
         except Exception as e:
             raise HTTPException(
@@ -234,6 +224,22 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
     """Convert a persisted InsightRecord back to an InsightResponse."""
     dims = record.dimensions
     mets = record.metrics or {}
+
+    alternatives_resp = None
+    if record.alternatives and record.alternatives.get("triggered"):
+        alternatives_resp = AlternativesResponse(
+            triggered=True,
+            trigger_reasons=record.alternatives.get("trigger_reasons", []),
+            suggestions=[
+                AlternativeResponse(
+                    ticker=s["ticker"],
+                    health_score=s.get("health_score"),
+                    reason=s.get("reason", ""),
+                )
+                for s in record.alternatives.get("suggestions", [])
+            ],
+        )
+
     return InsightResponse(
         ticker=record.ticker,
         asset_state=AssetState(record.asset_state),
@@ -260,6 +266,10 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
         scenario=record.scenario or "",
         risks=record.risks or [],
         explanation=record.explanation or "",
+        portfolio_role=record.portfolio_role,
+        health_score=record.health_score,
+        profile_fit_score=record.profile_fit_score,
+        alternatives=alternatives_resp,
     )
 
 
