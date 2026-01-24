@@ -12,9 +12,10 @@ Backend MVP for personal investment portfolio analysis. Provides educational and
 
 Three-layer analysis engine:
 
-1. **Metrics** — Raw financial computations (SMA, volatility, P/E, margins)
+1. **Metrics** — Raw financial computations (SMA, Parabolic SAR, volatility, P/E, margins)
 2. **Rules** — Deterministic business logic classifying asset states across 5 dimensions
 3. **AI Interpretation** — Natural language explanations via OpenAI (receives only processed states)
+4. **Translation** — Optional multi-language output via Azure Translator
 
 ### Five Dimensions
 
@@ -34,6 +35,7 @@ These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `
 - PostgreSQL + SQLAlchemy (async)
 - yfinance for market data
 - OpenAI API for text explanations
+- Azure Translator for multi-language support
 - Alembic for migrations
 
 ## API Endpoints
@@ -41,8 +43,12 @@ These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/assets/analyze` | Analyze a single ticker |
-| POST | `/portfolio/analyze` | Analyze full portfolio (max 20 assets) |
+| POST | `/portfolio/analyze` | Analyze full portfolio and persist (upsert) |
+| GET | `/portfolio` | Retrieve saved portfolio with insights |
+| PUT | `/portfolio` | Update portfolio assets and re-analyze |
 | GET | `/health` | Health check |
+
+All analysis endpoints accept an optional `language` parameter (ISO code, e.g. `es`, `fr`, `pt`) to translate AI-generated text into the target language.
 
 ## Project Structure
 

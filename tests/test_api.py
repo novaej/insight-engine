@@ -19,6 +19,11 @@ from insight_engine.main import app
 async def _mock_session():
     session = MagicMock()
     session.commit = AsyncMock()
+    session.flush = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalars.return_value.all.return_value = []
+    session.execute = AsyncMock(return_value=mock_result)
     yield session
 
 

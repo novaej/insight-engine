@@ -42,6 +42,7 @@ class MetricsSummary:
     max_drawdown: float | None = None
     annualized_volatility: float | None = None
     sp500_above_sma200: bool | None = None
+    parabolic_sar: float | None = None
 
 
 @dataclass

@@ -100,7 +100,49 @@ curl -X POST http://localhost:8000/portfolio/analyze \
   }'
 ```
 
+### Analyze with translation
+
+```bash
+curl -X POST http://localhost:8000/assets/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ticker": "AAPL",
+    "user_profile": {
+      "risk": "moderate",
+      "horizon": "long",
+      "goal": "growth"
+    },
+    "language": "es"
+  }'
+```
+
+### Retrieve saved portfolio
+
+```bash
+curl http://localhost:8000/portfolio
+```
+
+### Update portfolio and re-analyze
+
+```bash
+curl -X PUT http://localhost:8000/portfolio \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assets": [
+      {"ticker": "AAPL", "quantity": 15},
+      {"ticker": "GOOGL", "quantity": 8}
+    ],
+    "language": "fr"
+  }'
+```
+
+### Notes
+
 Both `/assets/analyze` and `/portfolio/analyze` accept an optional `use_ai` parameter (defaults to `true`). Set to `false` to skip AI-generated explanations and avoid OpenAI API calls.
+
+All analysis endpoints accept an optional `language` parameter (ISO code, e.g. `es`, `fr`, `pt`) to translate AI-generated text. Requires Azure Translator credentials.
+
+`POST /portfolio/analyze` persists the portfolio (upsert). Use `GET /portfolio` to retrieve it later, or `PUT /portfolio` to update assets and trigger re-analysis.
 
 ## Database Migrations
 
@@ -119,5 +161,9 @@ alembic upgrade head
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./dev.db` | Database connection string |
 | `OPENAI_API_KEY` | Yes* | — | OpenAI API key for explanations |
 | `OPENAI_MODEL` | No | `gpt-4o-mini` | Model for generating explanations |
+| `AZURE_TRANSLATOR_KEY` | No | — | Azure Translator API key for multi-language support |
+| `AZURE_TRANSLATOR_ENDPOINT` | No | — | Azure Translator endpoint URL |
+| `AZURE_TRANSLATOR_REGION` | No | — | Azure Translator region (e.g. `westeurope`) |
 
 *The API works without an OpenAI key but won't generate natural language explanations.
+Translation requires all three Azure Translator variables. Without them, text is returned in English.

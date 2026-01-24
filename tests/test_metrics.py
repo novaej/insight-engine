@@ -5,6 +5,7 @@ from insight_engine.services.metrics import (
     calculate_annualized_volatility,
     calculate_max_drawdown,
     calculate_metrics,
+    calculate_parabolic_sar,
     calculate_sma,
 )
 
@@ -78,3 +79,55 @@ def test_calculate_metrics_with_full_info():
     assert metrics.revenue_growth == 0.12
     assert metrics.profit_margin == 0.18
     assert abs(metrics.debt_to_equity - 0.80) < 0.01
+
+
+def test_parabolic_sar_uptrend():
+    """SAR should be below price in an uptrend."""
+    n = 50
+    high = pd.Series([100.0 + i * 1.5 for i in range(n)])
+    low = pd.Series([98.0 + i * 1.5 for i in range(n)])
+    close = pd.Series([99.0 + i * 1.5 for i in range(n)])
+    sar = calculate_parabolic_sar(high, low, close)
+    assert sar is not None
+    assert sar < close.iloc[-1]
+
+
+def test_parabolic_sar_downtrend():
+    """SAR should be above price in a downtrend."""
+    n = 50
+    high = pd.Series([200.0 - i * 1.5 for i in range(n)])
+    low = pd.Series([198.0 - i * 1.5 for i in range(n)])
+    close = pd.Series([199.0 - i * 1.5 for i in range(n)])
+    sar = calculate_parabolic_sar(high, low, close)
+    assert sar is not None
+    assert sar > close.iloc[-1]
+
+
+def test_parabolic_sar_insufficient_data():
+    """SAR returns None when fewer than 2 data points."""
+    high = pd.Series([100.0])
+    low = pd.Series([98.0])
+    close = pd.Series([99.0])
+    sar = calculate_parabolic_sar(high, low, close)
+    assert sar is None
+
+
+def test_parabolic_sar_in_calculate_metrics():
+    """SAR is included in calculate_metrics when High/Low are available."""
+    np.random.seed(42)
+    n = 100
+    base = 100 + np.cumsum(np.random.randn(n) * 0.5)
+    hist = pd.DataFrame({
+        "Close": base,
+        "High": base + 1.0,
+        "Low": base - 1.0,
+    })
+    metrics = calculate_metrics(hist, {})
+    assert metrics.parabolic_sar is not None
+
+
+def test_parabolic_sar_none_without_high_low():
+    """SAR is None when High/Low columns are missing."""
+    hist = pd.DataFrame({"Close": [100.0] * 50})
+    metrics = calculate_metrics(hist, {})
+    assert metrics.parabolic_sar is None

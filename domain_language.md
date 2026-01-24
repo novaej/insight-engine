@@ -32,20 +32,24 @@ Types supported in the MVP:
 ---
 
 ## 4. Portfolio
-A set of assets with defined quantities.  
-The portfolio is analyzed:  
-- as the sum of its parts  
+A set of assets with defined quantities.
+The portfolio is analyzed:
+- as the sum of its parts
 - as a global risk structure
+
+The portfolio is **persisted** after analysis. A single portfolio row is maintained (upserted on each analysis). Associated insights are stored with a foreign key link to the portfolio and replaced on re-analysis.
 
 ---
 
 ## 5. Trend
-Indicates whether the market is supporting the asset’s price.
+Indicates whether the market is supporting the asset's price.
 
-Values:  
-- bullish  
-- sideways  
+Values:
+- bullish
+- sideways
 - bearish
+
+Determined by SMA 50/200 alignment and confirmed/moderated by Parabolic SAR when available.
 
 ---
 
@@ -126,9 +130,19 @@ more aligned with the user.
 ## 14. Insight
 Minimum unit of value delivered to the user.
 
-An insight includes:  
-- asset state  
-- scenario  
-- horizon  
-- risks  
+An insight includes:
+- asset state
+- scenario
+- horizon
+- risks
 - natural language explanation
+
+---
+
+## 15. Parabolic SAR
+A trend-following indicator (Stop and Reverse) calculated using Wilder's algorithm. Used as a confirming signal for the SMA-based trend evaluation. When price is above SAR, the signal is bullish; when below, bearish. Parameters: initial AF = 0.02, step = 0.02, max AF = 0.20.
+
+---
+
+## 16. Translation
+The process of converting AI-generated text (scenario, explanation, risks, summary) into the user's preferred language. Powered by Azure Translator. Specified via a `language` parameter (ISO code, e.g. `es`, `fr`, `pt`). English is the default and requires no translation.

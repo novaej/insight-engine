@@ -1,3 +1,5 @@
+import datetime
+
 from pydantic import BaseModel, Field
 
 from insight_engine.domain.enums import (
@@ -38,6 +40,7 @@ class MetricsResponse(BaseModel):
     current_price: float | None = None
     sma_50: float | None = None
     sma_200: float | None = None
+    parabolic_sar: float | None = None
     pe_ratio: float | None = None
     revenue_growth: float | None = None
     profit_margin: float | None = None
@@ -69,8 +72,25 @@ class PortfolioRequest(BaseModel):
     language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
 
+class PortfolioUpdateRequest(BaseModel):
+    user_profile: UserProfileRequest | None = None
+    assets: list[PortfolioAsset] = Field(..., min_length=1, max_length=20)
+    use_ai: bool = True
+    language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
+
+
 class PortfolioSummaryResponse(BaseModel):
     total_assets: int
     insights: list[InsightResponse]
     overall_risk: RiskLevel
     summary: str
+
+
+class PortfolioResponse(BaseModel):
+    id: int
+    user_profile: UserProfileRequest
+    assets: list[PortfolioAsset]
+    overall_risk: RiskLevel
+    summary: str
+    insights: list[InsightResponse]
+    updated_at: datetime.datetime

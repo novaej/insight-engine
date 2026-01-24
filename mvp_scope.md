@@ -9,13 +9,16 @@ about a small portfolio, using deterministic rules and natural language.
 ## 2. What the MVP Includes
 
 ### Functionality
-- Analysis of stocks and ETFs  
-- Evaluation per asset  
-- Global portfolio evaluation  
-- Daily insights  
-- Suggestion of alternatives  
-- Fixed user profile  
+- Analysis of stocks and ETFs
+- Evaluation per asset
+- Global portfolio evaluation
+- Portfolio persistence (upsert on analyze, GET to retrieve, PUT to update and re-analyze)
+- Daily insights
+- Suggestion of alternatives
+- Fixed user profile
 - Manually entered portfolio
+- Multi-language support (Azure Translator for AI-generated text)
+- Parabolic SAR as a trend-confirming technical indicator
 
 ---
 

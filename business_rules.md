@@ -43,8 +43,13 @@ Each dimension produces **a single discrete state**.
 - Sideways
 - Bearish
 
-**General rule:**  
-Price must be aligned with relevant moving averages (SMA 50 and 200).
+**General rule:**
+Price alignment with moving averages (SMA 50 and 200) determines the base trend signal. The Parabolic SAR acts as a confirming or tie-breaking indicator:
+
+- If SMA trend is clear (bullish or bearish) and SAR agrees → confirmed trend.
+- If SMA trend is clear but SAR disagrees → sideways (conflict).
+- If SMA trend is sideways and SAR is available → SAR provides direction.
+- If SAR is unavailable → SMA-only logic applies.
 
 ---
 
@@ -158,3 +163,9 @@ The AI:
 - receives only processed states and metrics
 - never receives raw market data
 - cannot issue orders or target prices
+
+---
+
+## 11. Translation
+
+AI-generated text fields (scenario, explanation, risks, and portfolio summary) can be translated into any supported language via Azure Translator. Translation is applied only when a `language` parameter is provided and the target language is not English. If translation is unavailable, the original English text is returned unchanged.

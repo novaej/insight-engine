@@ -15,6 +15,7 @@ InsightEngine is a backend MVP for personal investment portfolio analysis. It pr
 - **Database:** PostgreSQL
 - **Validation:** Pydantic schemas
 - **AI:** OpenAI API (text explanations only—never raw market data)
+- **Translation:** Azure Translator (multi-language support for AI-generated text)
 - **Data:** External financial data APIs
 - **Scheduling:** Daily jobs for data updates
 
@@ -55,18 +56,18 @@ tests/            # Unit tests (metrics, rules, endpoints)
 ```
 
 ### Layer 1: Metrics/Calculations (Technical)
-Raw financial computations—moving averages, volatility, fundamental metrics.
+Raw financial computations—moving averages, Parabolic SAR, volatility, fundamental metrics.
 
 ### Layer 2: Business Rules (Deterministic)
 Non-AI logic that classifies asset states. Each asset is evaluated on five independent dimensions:
 
-| Dimension | Possible States |
-|-----------|----------------|
-| Trend | bullish, sideways, bearish |
-| Valuation | cheap, reasonable, expensive, inconclusive |
-| Fundamentals | strong, mixed, weak |
-| Risk/Volatility | low, medium, high |
-| Market Context | favorable, adverse |
+| Dimension | Possible States | Indicators |
+|-----------|----------------|------------|
+| Trend | bullish, sideways, bearish | SMA 50/200 + Parabolic SAR |
+| Valuation | cheap, reasonable, expensive, inconclusive | P/E vs historical avg |
+| Fundamentals | strong, mixed, weak | Revenue growth, margins, debt |
+| Risk/Volatility | low, medium, high | Volatility, max drawdown |
+| Market Context | favorable, adverse | S&P 500 vs SMA 200 |
 
 These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `neutral`, `risky`, or `unattractive`.
 
@@ -80,12 +81,17 @@ These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `
 ### Layer 3: AI Interpretation (LLM)
 Receives only processed states and metrics. Explains and contextualizes results in natural language. Cannot issue orders or price targets. Maximum 3 signals or risks per insight.
 
+### Translation Layer
+AI-generated text (scenario, explanation, risks, summary) can be translated into any supported language via Azure Translator. Activated by passing a `language` parameter (ISO code) to analysis endpoints. English is the default and skips translation.
+
 ## Domain Concepts
 
 - **User Profile:** risk (low|moderate|high) + horizon (short|medium|long) + objective (growth|income|capital_protection). Modulates interpretation, not base rules.
+- **Portfolio:** Persisted set of assets. Upserted on `POST /portfolio/analyze`, retrievable via `GET /portfolio`, updatable via `PUT /portfolio`. Stores overall risk and summary alongside linked insights.
 - **Insight:** The minimum unit of value—includes asset state, scenario, horizon, risks, and natural language explanation.
 - **Scenario:** Narrative of likely behavior without price predictions or timing.
 - **Alternative:** Comparable asset more aligned with the user's profile (not a recommendation).
+- **Parabolic SAR:** Trend-confirming indicator (Wilder's algorithm, AF 0.02→0.20). Confirms or moderates SMA-based trend signals.
 
 ## MVP Constraints
 
