@@ -1,0 +1,99 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from insight_engine.ai.handlers import generate_explanation
+from insight_engine.api.schemas import (
+    AnalyzeAssetRequest,
+    DimensionsResponse,
+    InsightResponse,
+    MetricsResponse,
+)
+from insight_engine.database import get_session
+from insight_engine.domain.entities import Insight, UserProfile
+from insight_engine.domain.models import InsightRecord
+from insight_engine.services.analysis import analyze_asset
+
+router = APIRouter(prefix="/assets", tags=["assets"])
+
+
+def _to_record(insight: Insight) -> InsightRecord:
+    """Convert an Insight entity to a database record."""
+    return InsightRecord(
+        ticker=insight.ticker,
+        asset_state=insight.asset_state.value,
+        dimensions={
+            "trend": insight.dimensions.trend.value,
+            "valuation": insight.dimensions.valuation.value,
+            "fundamentals": insight.dimensions.fundamentals.value,
+            "risk_level": insight.dimensions.risk_level.value,
+            "market_context": insight.dimensions.market_context.value,
+        },
+        metrics={
+            "current_price": insight.metrics.current_price,
+            "sma_50": insight.metrics.sma_50,
+            "sma_200": insight.metrics.sma_200,
+            "pe_ratio": insight.metrics.pe_ratio,
+            "revenue_growth": insight.metrics.revenue_growth,
+            "profit_margin": insight.metrics.profit_margin,
+            "debt_to_equity": insight.metrics.debt_to_equity,
+            "annualized_volatility": insight.metrics.annualized_volatility,
+            "max_drawdown": insight.metrics.max_drawdown,
+        },
+        horizon=insight.horizon.value,
+        scenario=insight.scenario,
+        risks=insight.risks,
+        explanation=insight.explanation,
+    )
+
+
+@router.post("/analyze", response_model=InsightResponse)
+async def analyze_asset_endpoint(
+    request: AnalyzeAssetRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Analyze a single asset and return an educational insight."""
+    user_profile = None
+    if request.user_profile:
+        user_profile = UserProfile(
+            risk=request.user_profile.risk,
+            horizon=request.user_profile.horizon,
+            objective=request.user_profile.goal,
+        )
+
+    try:
+        insight = analyze_asset(request.ticker, user_profile)
+        if request.use_ai:
+            insight = generate_explanation(insight, user_profile)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+    record = _to_record(insight)
+    session.add(record)
+    await session.commit()
+
+    return InsightResponse(
+        ticker=insight.ticker,
+        asset_state=insight.asset_state,
+        dimensions=DimensionsResponse(
+            trend=insight.dimensions.trend,
+            valuation=insight.dimensions.valuation,
+            fundamentals=insight.dimensions.fundamentals,
+            risk_level=insight.dimensions.risk_level,
+            market_context=insight.dimensions.market_context,
+        ),
+        metrics=MetricsResponse(
+            current_price=insight.metrics.current_price,
+            sma_50=insight.metrics.sma_50,
+            sma_200=insight.metrics.sma_200,
+            pe_ratio=insight.metrics.pe_ratio,
+            revenue_growth=insight.metrics.revenue_growth,
+            profit_margin=insight.metrics.profit_margin,
+            debt_to_equity=insight.metrics.debt_to_equity,
+            annualized_volatility=insight.metrics.annualized_volatility,
+            max_drawdown=insight.metrics.max_drawdown,
+        ),
+        horizon=insight.horizon,
+        scenario=insight.scenario,
+        risks=insight.risks,
+        explanation=insight.explanation,
+    )
