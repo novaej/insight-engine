@@ -12,6 +12,7 @@ from insight_engine.database import get_session
 from insight_engine.domain.entities import Insight, UserProfile
 from insight_engine.domain.models import InsightRecord
 from insight_engine.services.analysis import analyze_asset
+from insight_engine.services.translator import translate_insight
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -64,6 +65,8 @@ async def analyze_asset_endpoint(
         insight = analyze_asset(request.ticker, user_profile)
         if request.use_ai:
             insight = generate_explanation(insight, user_profile)
+            if request.language:
+                translate_insight(insight, request.language)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 

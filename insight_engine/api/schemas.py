@@ -23,6 +23,7 @@ class AnalyzeAssetRequest(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=10)
     user_profile: UserProfileRequest | None = None
     use_ai: bool = True
+    language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
 
 class DimensionsResponse(BaseModel):
@@ -65,6 +66,7 @@ class PortfolioRequest(BaseModel):
     user_profile: UserProfileRequest
     assets: list[PortfolioAsset] = Field(..., min_length=1, max_length=20)
     use_ai: bool = True
+    language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
 
 class PortfolioSummaryResponse(BaseModel):

@@ -14,6 +14,7 @@ from insight_engine.database import get_session
 from insight_engine.domain.entities import UserProfile
 from insight_engine.domain.enums import RiskLevel
 from insight_engine.services.analysis import analyze_asset
+from insight_engine.services.translator import translate_insight, translate_texts
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
@@ -36,6 +37,8 @@ async def analyze_portfolio_endpoint(
             insight = analyze_asset(asset.ticker, user_profile)
             if request.use_ai:
                 insight = generate_explanation(insight, user_profile)
+                if request.language:
+                    translate_insight(insight, request.language)
             insights.append(insight)
         except Exception as e:
             raise HTTPException(
@@ -49,6 +52,8 @@ async def analyze_portfolio_endpoint(
 
     overall_risk = _determine_overall_risk(insights)
     summary = _build_summary(insights, overall_risk)
+    if request.language:
+        summary = translate_texts([summary], request.language)[0]
 
     insight_responses = [
         InsightResponse(
