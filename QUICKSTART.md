@@ -12,7 +12,9 @@
 cd insight-engine
 
 # Create virtual environment
-python -m venv venv
+# Note: on macOS/Linux the command is often `python3` — if `python` returns
+# "command not found", use `python3` instead (inside the venv, `python` works).
+python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
@@ -23,6 +25,38 @@ cp .env.example .env
 # Edit .env with your values:
 #   DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/insight_engine
 #   OPENAI_API_KEY=sk-...
+```
+
+### Create the database
+
+The database referenced in `DATABASE_URL` must exist before starting the server. Create it with:
+
+```bash
+psql -U postgres -c "CREATE DATABASE insight_engine;"
+```
+
+If PostgreSQL runs in Docker, execute the command inside the container instead (replace `postgres16` with your container name):
+
+```bash
+docker exec -it postgres16 psql -U postgres -c "CREATE DATABASE insight_engine;"
+```
+
+Then apply the schema:
+
+```bash
+alembic upgrade head
+```
+
+### Recreate a broken virtual environment
+
+If the venv misbehaves (imports fail, wrong Python version, `pip` errors), delete it and start fresh:
+
+```bash
+deactivate  # only if a venv is currently active; ignore "command not found"
+rm -rf venv  # Windows: rmdir /s /q venv
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -e ".[dev]"
 ```
 
 ## Run the Server
