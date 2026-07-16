@@ -22,23 +22,43 @@ InsightEngine is a backend MVP for personal investment portfolio analysis. It pr
 ## Build & Development Commands
 
 ```bash
-# Environment setup
-python -m venv venv
+# Environment setup (use python3 if `python` is not on PATH)
+python3 -m venv venv
 source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 
-# Run the API server
+# Recreate a broken venv
+deactivate; rm -rf venv  # then repeat the setup steps above
+
+# Create the database (must exist before starting the server)
+psql -U postgres -c "CREATE DATABASE insight_engine;"
+# or if PostgreSQL runs in Docker (replace container name):
+docker exec -it postgres16 psql -U postgres -c "CREATE DATABASE insight_engine;"
+
+# Apply database migrations
+alembic upgrade head
+
+# Generate a migration after model changes
+alembic revision --autogenerate -m "description"
+
+# Run the API server (http://localhost:8000, docs at /docs)
 uvicorn insight_engine.main:app --reload
 
 # Run all tests
 pytest
+
+# Run tests with coverage
+pytest --cov=insight_engine
 
 # Run a single test file
 pytest tests/test_valuation_rules.py
 
 # Run a specific test
 pytest tests/test_valuation_rules.py::test_cheap_valuation -v
+
+# Lint and format
+ruff check .
+ruff format .
 ```
 
 ## Architecture
@@ -116,9 +136,11 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 ## Reference Documents
 
 - `business_rules.md` – Complete business rule specifications and state synthesis logic
+- `calculations.md` – Plain-language explanation and formula for every metric/indicator (SMA, Parabolic SAR, volatility, drawdown, P/E benchmark, fundamentals, market context)
 - `domain_language.md` – Terminology definitions used consistently throughout the system
 - `mvp_scope.md` – MVP boundaries, assumptions, and success criteria
 - `architect_prompt.md` – Architectural specification and naming conventions
+- `next_steps.md` – Prioritized post-MVP roadmap (multi-user persistence, position-aware analysis, sector benchmarks, monitoring/alerts)
 
 ## Naming Conventions
 
