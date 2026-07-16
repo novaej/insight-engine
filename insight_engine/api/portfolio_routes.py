@@ -1,8 +1,10 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from insight_engine.ai.handlers import generate_explanation
+from insight_engine.ai.handlers import generate_batch_explanations
 from insight_engine.api.asset_routes import _build_insight_response, _to_record
 from insight_engine.api.schemas import (
     AlternativeResponse,
@@ -47,35 +49,72 @@ async def _run_analysis(
 ) -> tuple[list[Insight], RiskLevel, str]:
     """Run analysis on all assets, persist insights, and return results."""
     market_data_provider = get_market_data_provider()
-    insights: list[Insight] = []
-    for asset in assets:
-        try:
-            insight, info = analyze_asset(asset.ticker, user_profile, market_data_provider)
 
-            # Prepare alternatives context
-            alternatives_ctx = prepare_alternatives_context(
-                insight, info, user_profile, market_data_provider
-            )
+    # Fetch the S&P 500 history once; it's identical for every asset.
+    sp500_hist = await asyncio.to_thread(
+        market_data_provider.fetch_history, "^GSPC", "1y"
+    )
 
-            if use_ai:
-                insight = generate_explanation(
-                    insight, user_profile, alternatives_context=alternatives_ctx
+    # Deterministic analysis is I/O-bound (market data fetches); run assets
+    # concurrently in threads, capped to stay polite to the data provider.
+    semaphore = asyncio.Semaphore(5)
+
+    def _analyze_one_sync(asset: PortfolioAsset) -> tuple[Insight, dict | None]:
+        insight, info = analyze_asset(
+            asset.ticker, user_profile, market_data_provider, sp500_hist=sp500_hist
+        )
+        alternatives_ctx = prepare_alternatives_context(
+            insight, info, user_profile, market_data_provider
+        )
+        return insight, alternatives_ctx
+
+    async def _analyze_one(asset: PortfolioAsset) -> tuple[Insight, dict | None]:
+        async with semaphore:
+            try:
+                return await asyncio.to_thread(_analyze_one_sync, asset)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Analysis failed for {asset.ticker}: {str(e)}",
                 )
-                if language:
-                    translate_insight(insight, language)
 
-            # Resolve alternatives if triggered
-            if alternatives_ctx:
-                resolve_alternatives(
-                    insight, user_profile, market_data_provider, alternatives_ctx, use_ai
+    analyzed = await asyncio.gather(*(_analyze_one(asset) for asset in assets))
+
+    if use_ai:
+        # One LLM call covers explanations (and alternative suggestions where
+        # triggered) for the whole portfolio.
+        await asyncio.to_thread(generate_batch_explanations, analyzed, user_profile)
+        if language:
+            for insight, _ in analyzed:
+                await asyncio.to_thread(translate_insight, insight, language)
+
+    async def _resolve_one(insight: Insight, alternatives_ctx: dict) -> None:
+        async with semaphore:
+            try:
+                await asyncio.to_thread(
+                    resolve_alternatives,
+                    insight,
+                    user_profile,
+                    market_data_provider,
+                    alternatives_ctx,
+                    use_ai,
+                    sp500_hist,
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Analysis failed for {insight.ticker}: {str(e)}",
                 )
 
-            insights.append(insight)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Analysis failed for {asset.ticker}: {str(e)}",
-            )
+    await asyncio.gather(
+        *(
+            _resolve_one(insight, ctx)
+            for insight, ctx in analyzed
+            if ctx is not None
+        )
+    )
+
+    insights: list[Insight] = [insight for insight, _ in analyzed]
 
     # Delete old insights for this portfolio
     await session.execute(

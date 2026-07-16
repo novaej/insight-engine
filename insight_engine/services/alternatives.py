@@ -74,6 +74,7 @@ def resolve_alternatives(
     market_data_provider: MarketDataProvider,
     alternatives_context: dict,
     use_ai: bool = True,
+    sp500_hist=None,
 ) -> Insight:
     """Resolve alternative suggestions after AI call (if applicable).
 
@@ -82,6 +83,9 @@ def resolve_alternatives(
     """
     trigger_reasons = alternatives_context.get("trigger_reasons", [])
     role = insight.portfolio_role
+
+    if sp500_hist is None:
+        sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
 
     # Check if AI provided suggestions
     ai_suggestions = getattr(insight, "_ai_suggestions", None)
@@ -93,6 +97,7 @@ def resolve_alternatives(
             user_profile=user_profile,
             market_data_provider=market_data_provider,
             exclude_ticker=insight.ticker,
+            sp500_hist=sp500_hist,
         )
     else:
         # Fallback: use JSON config candidates
@@ -101,6 +106,7 @@ def resolve_alternatives(
             exclude_ticker=insight.ticker,
             user_profile=user_profile,
             market_data_provider=market_data_provider,
+            sp500_hist=sp500_hist,
         )
 
     insight.alternatives = AlternativesResult(
@@ -121,6 +127,7 @@ def _validate_ai_suggestions(
     user_profile: UserProfile,
     market_data_provider: MarketDataProvider,
     exclude_ticker: str,
+    sp500_hist=None,
 ) -> list[AlternativeSuggestion]:
     """Validate AI-suggested candidates with real metrics."""
     candidates_data = []
@@ -131,7 +138,8 @@ def _validate_ai_suggestions(
         try:
             hist = market_data_provider.fetch_history(suggestion.ticker, period="1y")
             info = market_data_provider.fetch_info(suggestion.ticker)
-            sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
+            if sp500_hist is None:
+                sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
 
             from insight_engine.services.metrics import calculate_metrics
             metrics = calculate_metrics(hist, info, sp500_hist)
@@ -166,6 +174,7 @@ def _get_fallback_suggestions(
     exclude_ticker: str,
     user_profile: UserProfile,
     market_data_provider: MarketDataProvider,
+    sp500_hist=None,
 ) -> list[AlternativeSuggestion]:
     """Fetch metrics for fallback candidates, score and filter them."""
     candidate_tickers = get_fallback_candidates(role, exclude_ticker)
@@ -175,7 +184,8 @@ def _get_fallback_suggestions(
         try:
             hist = market_data_provider.fetch_history(ticker, period="1y")
             info = market_data_provider.fetch_info(ticker)
-            sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
+            if sp500_hist is None:
+                sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
 
             from insight_engine.services.metrics import calculate_metrics
             metrics = calculate_metrics(hist, info, sp500_hist)

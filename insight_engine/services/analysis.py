@@ -14,11 +14,15 @@ def analyze_asset(
     ticker: str,
     user_profile: UserProfile | None = None,
     market_data_provider: MarketDataProvider | None = None,
+    sp500_hist=None,
 ) -> tuple[Insight, dict]:
     """Run the full analysis pipeline for a single asset.
 
     Returns a tuple of (Insight, info_dict) where info_dict is the raw
     asset info from the market data provider.
+
+    Pass sp500_hist to reuse an already-fetched S&P 500 history (e.g. when
+    analyzing many assets in one request).
     """
     if market_data_provider is None:
         from insight_engine.providers import get_market_data_provider
@@ -26,7 +30,8 @@ def analyze_asset(
 
     hist = market_data_provider.fetch_history(ticker)
     info = market_data_provider.fetch_info(ticker)
-    sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
+    if sp500_hist is None:
+        sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
 
     metrics = calculate_metrics(hist, info, sp500_hist)
     dimensions = evaluate_dimensions(metrics)

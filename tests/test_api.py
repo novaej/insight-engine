@@ -110,11 +110,11 @@ def test_analyze_asset_without_profile(mock_analyze, mock_explain, mock_provider
 @patch("insight_engine.api.portfolio_routes.resolve_alternatives")
 @patch("insight_engine.api.portfolio_routes.prepare_alternatives_context", return_value=None)
 @patch("insight_engine.api.portfolio_routes.get_market_data_provider")
-@patch("insight_engine.api.portfolio_routes.generate_explanation")
+@patch("insight_engine.api.portfolio_routes.generate_batch_explanations")
 @patch("insight_engine.api.portfolio_routes.analyze_asset")
 def test_analyze_portfolio_endpoint(mock_analyze, mock_explain, mock_provider, mock_prepare, mock_resolve):
     mock_analyze.side_effect = lambda ticker, *a, **kw: (_mock_insight(ticker.upper()), {"quoteType": "EQUITY"})
-    mock_explain.side_effect = lambda insight, *a, **kw: insight
+    mock_explain.return_value = None
 
     response = client.post(
         "/portfolio/analyze",
