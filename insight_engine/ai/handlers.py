@@ -118,10 +118,11 @@ def generate_batch_explanations(
 
     parsed: dict = {}
     try:
-        # ~400 output tokens per asset covers scenario, risks, explanation,
-        # and alternatives; capped below gpt-4o-mini's 16k output limit.
+        # ~700 output tokens per asset: scenario, risks, explanation,
+        # alternatives, plus JSON syntax/whitespace overhead. Capped below
+        # gpt-4o-mini's 16k output limit.
         content = provider.generate(
-            SYSTEM_PROMPT, prompt, max_tokens=min(16000, 400 * len(items) + 500)
+            SYSTEM_PROMPT, prompt, max_tokens=min(16000, 700 * len(items) + 1000)
         )
         parsed = json.loads(content)
     except Exception as e:

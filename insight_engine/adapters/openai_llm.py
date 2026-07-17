@@ -1,4 +1,8 @@
+import logging
+
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAILLMProvider:
@@ -23,4 +27,10 @@ class OpenAILLMProvider:
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
         )
-        return response.choices[0].message.content
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            logger.warning(
+                f"LLM output truncated at max_tokens={max_tokens}; "
+                "the JSON response will likely be unparseable"
+            )
+        return choice.message.content

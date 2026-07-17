@@ -145,7 +145,8 @@ Respond with a single JSON object keyed by ticker, with exactly one entry per as
     ]
   }}
 }}
-Include the "alternatives" key only for assets that have an Alternatives Context section."""
+Include the "alternatives" key only for assets that have an Alternatives Context section.
+Respond with compact JSON on a single line — no indentation or extra whitespace."""
 
 
 def build_user_context(user_profile) -> str:
