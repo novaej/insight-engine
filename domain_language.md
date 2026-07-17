@@ -8,6 +8,9 @@ The terms defined here must be used consistently throughout the system.
 ## 1. User
 A person who owns an investment portfolio and seeks to understand their current situation.
 
+Users are registered accounts (email + password). API access requires a bearer
+token obtained on login; each user owns exactly one portfolio.
+
 ---
 
 ## 2. User Profile
@@ -37,7 +40,19 @@ The portfolio is analyzed:
 - as the sum of its parts
 - as a global risk structure
 
-The portfolio is **persisted** after analysis. A single portfolio row is maintained (upserted on each analysis). Associated insights are stored with a foreign key link to the portfolio and replaced on re-analysis.
+The portfolio is **persisted** and belongs to a user. Its holdings are stored as
+purchase lots (see 4b). Associated insights are stored with a foreign key link to
+the portfolio and are **kept across re-analyses** — older insights form the
+queryable history.
+
+---
+
+## 4b. Position (Purchase Lot)
+
+One purchase of a ticker: quantity, optional purchase price, and optional
+purchase date. A ticker may have several lots at different prices. For analysis,
+lots are aggregated per ticker (summed quantity, quantity-weighted average
+cost). Max 20 distinct tickers per portfolio.
 
 ---
 
@@ -124,6 +139,10 @@ Examples:
 ## 13. Alternative
 Comparable asset that, under current rules, presents a profile more aligned with the user. Alternatives are triggered deterministically (scores and news flags) and are never investment recommendations.
 
+Candidates (AI-proposed, with the config universe as fallback) are validated
+with real metrics and must pass the user's risk-tolerance thresholds, have a
+profile fit score of at least 50, and not already be held in the portfolio.
+
 ---
 
 ## 14. Portfolio Role
@@ -169,6 +188,17 @@ An insight includes:
 - health score (optional)
 - profile fit score (optional)
 - alternatives (optional, when triggered)
+- position context (optional: market value, portfolio weight, average cost,
+  unrealized gain/loss — when analyzed as part of a portfolio)
+- analysis timestamp (insights accumulate; history is queryable per ticker)
+
+---
+
+## 18b. Concentration
+
+Portfolio-level state derived from position weights: `concentrated` when any
+single position exceeds 25% of portfolio value or any portfolio role exceeds
+40% combined; otherwise `diversified`. A classification, not an instruction.
 
 ---
 

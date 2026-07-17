@@ -48,10 +48,9 @@ about a small portfolio, using deterministic rules and natural language.
 
 ## 4. MVP Assumptions
 
-- 1 user  
-- 1 portfolio  
-- Max 20 assets  
-- Personal / experimental use  
+- Multi-user capable (email/password + bearer token), personal / experimental use  
+- 1 portfolio per user  
+- Max 20 distinct tickers (multiple purchase lots per ticker allowed)  
 - Data may be delayed  
 - Tolerance for imperfect data
 

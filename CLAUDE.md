@@ -106,7 +106,8 @@ Built on top of dimensions, computing:
 - **Health Score** (0–100): Composite of trend, fundamentals, valuation, risk, and drawdown
 - **Profile Fit Score** (0–100): Volatility/drawdown/horizon alignment with user profile
 - **News Flags**: Keyword-based risk extraction from headlines (no AI)
-- **Alternative Suggestions**: Triggered when health < 50, profile fit < 50, or news flags active. Candidates filtered by risk tolerance, ranked by health score, max 3 returned.
+- **Alternative Suggestions**: Triggered when health < 50, profile fit < 50, or news flags active. Candidates (AI-proposed, config universe as fallback) filtered by risk tolerance + profile fit ≥ 50 + not already held, ranked by health score, max 3 returned.
+- **Position Context** (`rules/concentration_rules.py`): market value, portfolio weight, and unrealized gain/loss per position; 25%/40% concentration rule; overall portfolio risk weighted by position value.
 
 ### Layer 3: AI Interpretation (LLM)
 Receives only processed states and metrics. Explains and contextualizes results in natural language. Cannot issue orders or price targets. Maximum 3 signals or risks per insight. When alternatives are triggered, a merged prompt requests both explanation and candidate suggestions in one call.
@@ -116,9 +117,12 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 
 ## Domain Concepts
 
-- **User Profile:** risk (low|moderate|high) + horizon (short|medium|long) + objective (growth|income|capital_protection). Modulates interpretation, not base rules.
-- **Portfolio:** Persisted set of assets. Upserted on `POST /portfolio/analyze`, retrievable via `GET /portfolio`, updatable via `PUT /portfolio`. Stores overall risk and summary alongside linked insights.
-- **Insight:** The minimum unit of value—includes asset state, scenario, horizon, risks, explanation, plus optional scores and alternatives.
+- **User:** Registered account (email/password). All portfolio/position/insight endpoints require `Authorization: Bearer <token>` from `POST /login`. `POST /profile/interpret` maps a plain-words description to a structured profile via AI (proposal only, never auto-applied).
+- **User Profile:** risk (low|moderate|high) + horizon (short|medium|long) + objective (growth|income|capital_protection). Modulates interpretation, not base rules. Note: objective currently only flavors AI text (see next_steps.md P4b).
+- **Position (Lot):** One purchase of a ticker (quantity, optional purchase price/date). Multiple lots per ticker allowed; analysis aggregates per ticker (summed quantity, weighted-average cost). CRUD via `/portfolio/positions/{id}`, no auto-analysis.
+- **Portfolio:** One per user. `POST /portfolio/analyze` analyzes stored positions (or syncs+analyzes a provided `assets` list — which **replaces** stored lots). Stores overall risk (value-weighted), summary, total value, and concentration. Insights are appended, never deleted — history via `GET /insights`.
+- **Insight:** The minimum unit of value—includes asset state, scenario, horizon, risks, explanation, plus optional scores, alternatives, and position context (weight, market value, unrealized gain/loss).
+- **Concentration:** `concentrated` when a position > 25% of value or a role > 40% combined; else `diversified`.
 - **Scenario:** Narrative of likely behavior without price predictions or timing.
 - **Portfolio Role:** Classification of an asset's function (US_LARGE_CAP_CORE, GROWTH_TECH, DIVIDEND_INCOME, DEFENSIVE, EMERGING_MARKETS, BONDS_STABILITY). Used for candidate discovery.
 - **Health Score / Profile Fit Score:** Deterministic 0–100 scores measuring asset quality and user-profile alignment respectively.
@@ -128,9 +132,10 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 
 ## MVP Constraints
 
-- Single user, single portfolio, max 20 assets
+- Multi-user (email/password registration, bearer token issued on login; token rotates per login)
+- One portfolio per user, max 20 distinct tickers (a ticker may have multiple purchase lots)
 - Stocks and ETFs only
-- No authentication, no broker integration, no real-time alerts
+- No broker integration, no real-time alerts
 - Data may be delayed; tolerance for imperfect data
 
 ## Reference Documents

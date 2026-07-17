@@ -40,33 +40,42 @@ These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/assets/analyze` | Analyze a single ticker |
-| POST | `/portfolio/analyze` | Analyze full portfolio and persist (upsert) |
-| GET | `/portfolio` | Retrieve saved portfolio with insights |
-| PUT | `/portfolio` | Update portfolio assets and re-analyze |
-| GET | `/health` | Health check |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/users` | — | Register (email, password) |
+| POST | `/login` | — | Get bearer token |
+| GET/PATCH/DELETE | `/users/me` | ✓ | Account management |
+| GET/POST | `/portfolio/positions` | ✓ | List / add purchase lots |
+| PATCH/DELETE | `/portfolio/positions/{id}` | ✓ | Edit / remove a lot |
+| POST | `/portfolio/analyze` | ✓ | Analyze portfolio (stored positions or provided assets) |
+| GET | `/portfolio` | ✓ | Saved portfolio + latest insight per ticker |
+| PUT | `/portfolio` | ✓ | Replace assets and re-analyze |
+| GET | `/insights` | ✓ | Insight history (filter by ticker/date) |
+| POST | `/profile/interpret` | ✓ | Plain words → structured user profile (AI) |
+| POST | `/assets/analyze` | — | Analyze a single ticker ad hoc |
+| GET | `/health` | — | Health check |
 
-All analysis endpoints accept an optional `language` parameter (ISO code, e.g. `es`, `fr`, `pt`) to translate AI-generated text into the target language.
+All analysis endpoints accept an optional `language` parameter (ISO code, e.g. `es`, `fr`, `pt`) to translate AI-generated text into the target language. See `api_reference.md` for details and `insight_engine.postman_collection.json` for ready-made requests.
 
 ## Project Structure
 
 ```
 insight_engine/
-├── api/             # FastAPI routes and response schemas
+├── api/             # FastAPI routes, auth dependency, response schemas
 ├── domain/          # Enums, entities, ORM models
-├── services/        # Data fetching, metrics, orchestration
+├── services/        # Metrics, analysis orchestration, alternatives, translation
 ├── rules/           # Deterministic business rules + synthesis
-├── ai/              # Prompt templates and OpenAI handler
+├── ai/              # Prompt templates and LLM handlers
+├── adapters/        # Yahoo Finance, OpenAI, Azure Translator integrations
 └── jobs/            # Scheduled daily analysis
 ```
 
 ## MVP Constraints
 
-- Single user, single portfolio, max 20 assets
+- Multi-user with bearer-token auth; one portfolio per user
+- Max 20 distinct tickers (multiple purchase lots per ticker allowed)
 - Stocks and ETFs only
-- No authentication, no broker integration
+- No broker integration
 - Data may be delayed
 
 ## License
