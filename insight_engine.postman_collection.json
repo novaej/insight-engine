@@ -11,7 +11,7 @@
     { "key": "token", "value": "" },
     { "key": "ticker", "value": "AAPL" },
     { "key": "position_id", "value": "1" },
-    { "key": "language", "value": "es" }
+    { "key": "language", "value": "en" }
   ],
   "item": [
     {
@@ -170,9 +170,9 @@
             "url": "{{base_url}}/portfolio/analyze",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"use_ai\": true\n}"
+              "raw": "{\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"use_ai\": true,\n  \"language\": \"{{language}}\"\n}"
             },
-            "description": "Without `assets`, analyzes the stored positions. Optional: \"language\": \"{{language}}\" to translate AI text, \"use_ai\": false to skip OpenAI."
+            "description": "Without `assets`, analyzes the stored positions. Set the {{language}} variable to an ISO code (es, fr, pt, ...) to translate AI text; 'en' skips translation. \"use_ai\": false skips OpenAI."
           }
         },
         {
@@ -186,7 +186,7 @@
             "url": "{{base_url}}/portfolio/analyze",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"assets\": [\n    {\"ticker\": \"AAPL\", \"quantity\": 2.0, \"purchase_price\": 180.0},\n    {\"ticker\": \"AAPL\", \"quantity\": 1.0, \"purchase_price\": 210.0},\n    {\"ticker\": \"VOO\", \"quantity\": 20}\n  ],\n  \"use_ai\": true\n}"
+              "raw": "{\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"assets\": [\n    {\"ticker\": \"AAPL\", \"quantity\": 2.0, \"purchase_price\": 180.0},\n    {\"ticker\": \"AAPL\", \"quantity\": 1.0, \"purchase_price\": 210.0},\n    {\"ticker\": \"VOO\", \"quantity\": 20}\n  ],\n  \"use_ai\": true,\n  \"language\": \"{{language}}\"\n}"
             },
             "description": "WARNING: `assets` is the full desired state — stored lots are replaced. Repeat a ticker to express multiple lots."
           }
@@ -210,9 +210,9 @@
             "url": "{{base_url}}/portfolio",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"assets\": [\n    {\"ticker\": \"AAPL\", \"quantity\": 15},\n    {\"ticker\": \"GOOGL\", \"quantity\": 8}\n  ],\n  \"use_ai\": true\n}"
+              "raw": "{\n  \"assets\": [\n    {\"ticker\": \"AAPL\", \"quantity\": 15},\n    {\"ticker\": \"GOOGL\", \"quantity\": 8}\n  ],\n  \"use_ai\": true,\n  \"language\": \"{{language}}\"\n}"
             },
-            "description": "Replaces stored lots and re-analyzes. Optional user_profile and language."
+            "description": "Replaces stored lots and re-analyzes. Optional user_profile. {{language}}: ISO code for AI-text translation; 'en' skips it."
           }
         }
       ]
@@ -252,9 +252,9 @@
             "url": "{{base_url}}/assets/analyze",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ticker\": \"{{ticker}}\",\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"use_ai\": true\n}"
+              "raw": "{\n  \"ticker\": \"{{ticker}}\",\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"use_ai\": true,\n  \"language\": \"{{language}}\"\n}"
             },
-            "description": "Ad hoc analysis of any ticker, not tied to your portfolio. Optional: \"language\": \"{{language}}\", \"use_ai\": false."
+            "description": "Ad hoc analysis of any ticker, not tied to your portfolio. {{language}}: ISO code for AI-text translation ('en' skips it); \"use_ai\": false skips OpenAI."
           }
         }
       ]
