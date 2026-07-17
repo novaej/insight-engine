@@ -38,17 +38,22 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     bind = op.get_bind()
-    result = bind.execute(
-        sa.text("INSERT INTO users (email, name) VALUES (:email, :name) RETURNING id"),
-        {"email": DEFAULT_USER_EMAIL, "name": "Default User"},
-    )
-    default_user_id = result.scalar_one()
+
+    # The default user exists only to own pre-existing data; skip it on a
+    # fresh database with nothing to backfill.
+    portfolio_count = bind.execute(sa.text("SELECT COUNT(*) FROM portfolios")).scalar_one()
 
     # 2. Link portfolios to the default user
     op.add_column('portfolios', sa.Column('user_id', sa.Integer(), nullable=True))
-    bind.execute(
-        sa.text("UPDATE portfolios SET user_id = :uid"), {"uid": default_user_id}
-    )
+    if portfolio_count:
+        result = bind.execute(
+            sa.text("INSERT INTO users (email, name) VALUES (:email, :name) RETURNING id"),
+            {"email": DEFAULT_USER_EMAIL, "name": "Default User"},
+        )
+        default_user_id = result.scalar_one()
+        bind.execute(
+            sa.text("UPDATE portfolios SET user_id = :uid"), {"uid": default_user_id}
+        )
     op.alter_column('portfolios', 'user_id', nullable=False)
     op.create_unique_constraint('uq_portfolios_user_id', 'portfolios', ['user_id'])
     op.create_foreign_key(
