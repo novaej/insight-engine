@@ -131,3 +131,26 @@ def test_parabolic_sar_none_without_high_low():
     hist = pd.DataFrame({"Close": [100.0] * 50})
     metrics = calculate_metrics(hist, {})
     assert metrics.parabolic_sar is None
+
+
+def test_calculate_metrics_sanitizes_nan():
+    """yfinance reports missing values as NaN; they must become None, not NaN."""
+    n = 250
+    close = pd.Series(np.linspace(100, 120, n))
+    hist = pd.DataFrame({"Close": close, "High": close + 1, "Low": close - 1})
+    info = {
+        "trailingPE": float("nan"),
+        "forwardPE": float("nan"),
+        "revenueGrowth": float("nan"),
+        "profitMargins": 0.2,
+        "debtToEquity": float("nan"),
+    }
+
+    metrics = calculate_metrics(hist, info)
+
+    assert metrics.pe_ratio is None
+    assert metrics.pe_historical_avg is None
+    assert metrics.revenue_growth is None
+    assert metrics.debt_to_equity is None
+    assert metrics.profit_margin == 0.2
+    assert metrics.current_price is not None

@@ -1,7 +1,24 @@
+import math
+
 import numpy as np
 import pandas as pd
 
 from insight_engine.domain.entities import MetricsSummary
+
+
+def _finite(value) -> float | None:
+    """Return the value as a float if finite, else None.
+
+    yfinance reports missing data as NaN, which breaks rule comparisons and
+    is invalid JSON when persisting.
+    """
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 def calculate_sma(prices: pd.Series, window: int) -> float | None:
@@ -145,16 +162,16 @@ def calculate_metrics(
             sp500_above_sma200 = float(sp500_close.iloc[-1]) > sp500_sma200
 
     return MetricsSummary(
-        sma_50=sma_50,
-        sma_200=sma_200,
-        current_price=current_price,
-        pe_ratio=pe_ratio,
-        pe_historical_avg=pe_historical_avg,
-        revenue_growth=revenue_growth,
-        profit_margin=profit_margin,
-        debt_to_equity=debt_to_equity,
-        max_drawdown=max_drawdown,
-        annualized_volatility=annualized_volatility,
+        sma_50=_finite(sma_50),
+        sma_200=_finite(sma_200),
+        current_price=_finite(current_price),
+        pe_ratio=_finite(pe_ratio),
+        pe_historical_avg=_finite(pe_historical_avg),
+        revenue_growth=_finite(revenue_growth),
+        profit_margin=_finite(profit_margin),
+        debt_to_equity=_finite(debt_to_equity),
+        max_drawdown=_finite(max_drawdown),
+        annualized_volatility=_finite(annualized_volatility),
         sp500_above_sma200=sp500_above_sma200,
-        parabolic_sar=parabolic_sar,
+        parabolic_sar=_finite(parabolic_sar),
     )
