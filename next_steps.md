@@ -113,6 +113,24 @@ better with P2 (weights tell it which positions matter most).
   later if needed. MVP explicitly excluded real-time alerts — this deliberately
   relaxes that.
 
+## P4b — Wire the investment objective (goal) into deterministic scoring
+
+**Why:** audit on 2026-07-17 found `goal` (growth | income | capital_protection)
+is only used in the AI prompt's user-context line — no deterministic rule
+consumes it. An income investor and a growth investor currently get identical
+scores and alternative suggestions.
+
+**What to build (needs its own design pass on weights):**
+
+- `income` → add a dividend-yield component to the Profile Fit Score and prefer
+  DIVIDEND_INCOME-role candidates when ranking alternatives.
+- `capital_protection` → tighten the volatility/drawdown thresholds a notch
+  (e.g. treat one risk level stricter) and prefer DEFENSIVE/BONDS_STABILITY
+  candidates.
+- `growth` → current behavior (baseline).
+- Document the new weights in `business_rules.md` §9.3 and update
+  `calculations.md`.
+
 ## P5 — Hardening & cleanup (ongoing, fits between steps)
 
 - Fix the 42 pre-existing ruff lint errors; enforce lint in CI.
@@ -135,6 +153,7 @@ better with P2 (weights tell it which positions matter most).
 | P2 position-aware analysis | P1 | medium |
 | P3 benchmark map | — (parallel-friendly) | small |
 | P4 watchdog + email | P1, better with P2 | large |
+| P4b goal-aware scoring | — (parallel-friendly) | medium |
 | P5 hardening | — | small, continuous |
 
 P3 is independent and small — it can be slotted in anytime as a break from the

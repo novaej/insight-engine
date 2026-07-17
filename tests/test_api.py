@@ -377,3 +377,14 @@ def test_interpret_profile_handler_validates_output():
         bad_provider.generate.return_value = '{"risk": "extreme", "horizon": "long", "goal": "growth"}'
         with _pytest.raises(ProfileInterpretationError):
             interpret_profile("anything at all", bad_provider)
+
+
+def test_invalid_horizon_rejected():
+    response = client.post(
+        "/portfolio/analyze",
+        json={
+            "user_profile": {"risk": "moderate", "horizon": "banana", "goal": "growth"},
+            "assets": [{"ticker": "AAPL", "quantity": 1}],
+        },
+    )
+    assert response.status_code == 422

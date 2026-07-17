@@ -57,6 +57,12 @@ class RiskProfile(str, Enum):
     high = "high"
 
 
+class UserHorizon(str, Enum):
+    short = "short"
+    medium = "medium"
+    long = "long"
+
+
 class InvestmentObjective(str, Enum):
     growth = "growth"
     income = "income"

@@ -11,6 +11,7 @@ from insight_engine.domain.enums import (
     RiskLevel,
     RiskProfile,
     Trend,
+    UserHorizon,
     Valuation,
 )
 
@@ -19,7 +20,7 @@ EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 class UserProfileRequest(BaseModel):
     risk: RiskProfile = RiskProfile.moderate
-    horizon: str = "long"
+    horizon: UserHorizon = UserHorizon.long
     goal: InvestmentObjective = InvestmentObjective.growth
 
 
@@ -34,7 +35,7 @@ class ProfileInterpretRequest(BaseModel):
 
 class ProfileInterpretResponse(BaseModel):
     risk: RiskProfile
-    horizon: str
+    horizon: UserHorizon
     goal: InvestmentObjective
     rationale: str = ""
 
