@@ -1,0 +1,120 @@
+# API Reference
+
+Summary of every endpoint: what it does, what it needs, and what it returns.
+For interactive exploration use Swagger at `http://localhost:8000/docs`; for
+ready-made requests import `insight_engine.postman_collection.json`.
+
+**Authentication:** all endpoints require `Authorization: Bearer <token>` except
+`GET /health`, `POST /users`, `POST /login`, and `POST /assets/analyze`.
+Tokens are obtained from `POST /login` and invalidated by the next login or a
+password change.
+
+## At a glance
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/health` | — | Liveness check |
+| POST | `/users` | — | Register (email, password, name) |
+| POST | `/login` | — | Get bearer token (rotates previous) |
+| GET | `/users/me` | ✓ | Current user info |
+| PATCH | `/users/me` | ✓ | Update email/name/password |
+| DELETE | `/users/me` | ✓ | Delete account + all data |
+| GET | `/portfolio/positions` | ✓ | List purchase lots |
+| POST | `/portfolio/positions` | ✓ | Add a lot |
+| PATCH | `/portfolio/positions/{id}` | ✓ | Edit a lot |
+| DELETE | `/portfolio/positions/{id}` | ✓ | Remove a lot |
+| POST | `/portfolio/analyze` | ✓ | Analyze portfolio (the main event) |
+| GET | `/portfolio` | ✓ | Stored portfolio + latest insights |
+| PUT | `/portfolio` | ✓ | Replace assets and re-analyze |
+| GET | `/insights` | ✓ | Insight history with filters |
+| POST | `/assets/analyze` | — | Ad hoc single-ticker analysis |
+
+## Users & authentication
+
+### POST /users
+Registers a user. Body: `email`, `password` (min 8 chars), optional `name`.
+Returns the user without any token — log in to get one. 409 if the email is taken.
+
+### POST /login
+Body: `email`, `password`. Returns `{token, token_type}`. Each login generates a
+new token and invalidates the previous one (single active session).
+
+### GET /users/me
+Returns the authenticated user's id, email, and name.
+
+### PATCH /users/me
+Partial update: `email` (409 if taken), `name`, and/or `password`. Changing the
+password requires `current_password` and logs you out (token invalidated).
+
+### DELETE /users/me
+Deletes the account and cascades to portfolio, positions, and insight history. 204.
+
+## Positions (purchase lots)
+
+A position row is one **purchase lot**. Buying the same ticker twice at
+different prices creates two lots; analysis aggregates lots per ticker
+(summed quantity, weighted-average purchase price). Editing lots never
+triggers analysis — that's always on-demand. Max 20 distinct tickers.
+
+### GET /portfolio/positions
+Lists all lots (each with its `id`), sorted by ticker.
+
+### POST /portfolio/positions
+Adds a lot: `ticker`, `quantity`, optional `purchase_price`, `purchase_date`.
+Creates an empty portfolio automatically on first use. 422 beyond 20 tickers.
+
+### PATCH /portfolio/positions/{id}
+Partial update of a lot: `quantity`, `purchase_price`, `purchase_date`.
+
+### DELETE /portfolio/positions/{id}
+Removes a lot. The ticker's insight history is kept. 204.
+
+## Portfolio analysis
+
+### POST /portfolio/analyze
+The core endpoint. Runs the full pipeline for every held ticker — market data
+fetch, deterministic rules (trend/valuation/fundamentals/risk/market context →
+asset state), health & profile-fit scores, news flags, one batched AI call for
+explanations, and alternative suggestions where triggered. Persists a new
+insight row per ticker (history accumulates).
+
+Body:
+- `user_profile` (required): `risk` (low|moderate|high), `horizon`
+  (short|medium|long), `goal` (growth|income|capital_protection)
+- `assets` (optional): full desired holdings — **replaces all stored lots**;
+  repeat a ticker for multiple lots. Omit to analyze stored positions (400 if
+  there are none).
+- `use_ai` (default true): false skips OpenAI (mechanical text instead)
+- `language` (optional ISO code, e.g. `es`): translates AI text via Azure
+
+Returns per-asset insights plus portfolio-level `overall_risk` and `summary`.
+
+### GET /portfolio
+Returns the stored portfolio: profile, all lots, overall risk, summary, and the
+**latest insight per currently held ticker**. No external calls — instant.
+
+### PUT /portfolio
+Same as analyze-with-assets (replaces lots, re-analyzes) but keeps the stored
+`user_profile` unless one is provided. 404 if no portfolio exists yet.
+
+## Insights
+
+### GET /insights
+Insight history for your portfolio, newest first. Every analysis run adds rows,
+so this shows how an asset's state/scores evolved over time. Query params, all
+optional: `ticker`, `from` / `to` (ISO datetimes), `limit` (1–500, default 50).
+
+## Assets
+
+### POST /assets/analyze
+Analyzes any single ticker ad hoc — same pipeline, but not tied to a user or
+portfolio (no auth). Body: `ticker` (required), optional `user_profile`,
+`use_ai`, `language`.
+
+## Error conventions
+
+- `401` — missing/invalid token, wrong credentials, wrong current password
+- `404` — no portfolio yet, unknown position id
+- `409` — email already registered
+- `422` — validation errors (bad email, >20 tickers, quantity ≤ 0, …)
+- `500` — analysis failure for a ticker (detail names the ticker)
