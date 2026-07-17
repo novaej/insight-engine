@@ -102,6 +102,7 @@ class MetricsResponse(BaseModel):
 class AlternativeResponse(BaseModel):
     ticker: str
     health_score: int | None = None
+    profile_fit_score: int | None = None
     reason: str = ""
 
 

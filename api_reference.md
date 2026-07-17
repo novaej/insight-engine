@@ -88,6 +88,11 @@ Body:
 - `use_ai` (default true): false skips OpenAI (mechanical text instead)
 - `language` (optional ISO code, e.g. `es`): translates AI text via Azure
 
+Alternative suggestions are filtered by the user's risk tolerance **and**
+profile fit (≥ 50), never include tickers already held in the portfolio, and
+fall back to the config candidate universe when the AI's candidates are all
+filtered out. Each suggestion carries its health score and profile fit score.
+
 Returns per-asset insights plus portfolio-level `overall_risk`, `summary`,
 `total_value`, and `concentration` (state + flagged tickers/roles). Each insight
 includes a `position` object when analyzed as part of a portfolio: quantity,

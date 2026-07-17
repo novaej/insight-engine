@@ -114,6 +114,8 @@ async def _run_analysis(
             for insight, _ in analyzed:
                 await asyncio.to_thread(translate_insight, insight, language)
 
+    held_tickers = {insight.ticker.upper() for insight in insights}
+
     async def _resolve_one(insight: Insight, alternatives_ctx: dict) -> None:
         async with semaphore:
             try:
@@ -125,6 +127,7 @@ async def _run_analysis(
                     alternatives_ctx,
                     use_ai,
                     sp500_hist,
+                    held_tickers,
                 )
             except Exception as e:
                 raise HTTPException(
@@ -419,6 +422,7 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
                 AlternativeResponse(
                     ticker=s["ticker"],
                     health_score=s.get("health_score"),
+                    profile_fit_score=s.get("profile_fit_score"),
                     reason=s.get("reason", ""),
                 )
                 for s in record.alternatives.get("suggestions", [])

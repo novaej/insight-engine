@@ -33,13 +33,14 @@ def filter_and_rank_candidates(
     user_profile: UserProfile,
     max_results: int = 3,
 ) -> list[dict]:
-    """Filter candidates by risk tolerance and rank by health score.
+    """Filter candidates by risk tolerance and profile fit, rank by health score.
 
     Each candidate_data dict should have:
       - ticker: str
       - annualized_volatility: float | None
       - max_drawdown: float | None
       - health_score: int
+      - profile_fit_score: int (optional)
       - reason: str (optional)
     """
     risk = user_profile.risk.value
@@ -61,6 +62,12 @@ def filter_and_rank_candidates(
         if vol is not None and vol > vol_limit:
             continue
         if dd is not None and dd < dd_limit:
+            continue
+
+        # An alternative must fit the user's profile at least as well as the
+        # trigger threshold — otherwise we'd suggest assets we'd flag ourselves
+        fit = c.get("profile_fit_score")
+        if fit is not None and fit < 50:
             continue
 
         filtered.append(c)

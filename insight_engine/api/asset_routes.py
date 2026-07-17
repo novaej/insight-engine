@@ -33,6 +33,7 @@ def _to_record(insight: Insight) -> InsightRecord:
                 {
                     "ticker": s.ticker,
                     "health_score": s.health_score,
+                    "profile_fit_score": s.profile_fit_score,
                     "reason": s.reason,
                 }
                 for s in insight.alternatives.suggestions
@@ -141,6 +142,7 @@ def _build_insight_response(insight: Insight) -> InsightResponse:
                 AlternativeResponse(
                     ticker=s.ticker,
                     health_score=s.health_score,
+                    profile_fit_score=s.profile_fit_score,
                     reason=s.reason,
                 )
                 for s in insight.alternatives.suggestions

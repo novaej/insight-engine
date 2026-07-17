@@ -221,17 +221,19 @@ Alternatives are triggered when **any** of these conditions are met:
 
 ### 9.6 Candidate Selection and Filtering
 
-**Candidate sources:**
+**Candidate sources (fallback chain):**
 1. **AI-driven** (`use_ai=True`): The LLM suggests 3–5 candidates in the same portfolio role; each candidate is then validated with real market metrics.
-2. **JSON fallback** (`use_ai=False` or AI fails): Static `config/candidate_universe.json` mapping from role → ticker list.
+2. **JSON fallback**: Static `config/candidate_universe.json` mapping from role → ticker list. Used when `use_ai=False`, when the AI fails, **or when every AI candidate was filtered out** — a trigger should not produce an empty list if the config has viable candidates.
 
 **Hard filters (exclude candidate if):**
 - `annualized_volatility` > user's risk threshold
 - `max_drawdown` < user's drawdown threshold (more negative)
+- `profile_fit_score` < 50 — an alternative must fit the user's profile at least as well as the threshold that triggers alternatives; otherwise the system would suggest assets it flags elsewhere
+- ticker is **already held in the portfolio** (something you own is not an alternative)
 
 **Ranking:** By health score descending.
 
-**Output:** Top 3 candidates after filtering.
+**Output:** Top 3 candidates after filtering, each carrying its health score and profile fit score.
 
 ---
 

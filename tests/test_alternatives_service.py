@@ -253,3 +253,75 @@ class TestEndToEnd:
         # Scores and role still populated
         assert healthy_insight.scores is not None
         assert healthy_insight.portfolio_role is not None
+
+
+class TestCandidateQuality:
+    def test_held_tickers_never_suggested(
+        self, risky_insight, moderate_profile, mock_market_data_provider
+    ):
+        risky_insight.portfolio_role = PortfolioRole.GROWTH_TECH
+        risky_insight._ai_suggestions = [
+            AlternativeSuggestion(ticker="AAPL", reason="held"),
+            AlternativeSuggestion(ticker="MSFT", reason="not held"),
+        ]
+
+        with patch(
+            "insight_engine.services.alternatives.get_fallback_candidates",
+            return_value=[],
+        ):
+            resolve_alternatives(
+                risky_insight,
+                moderate_profile,
+                mock_market_data_provider,
+                {"trigger_reasons": ["Low health score"]},
+                use_ai=True,
+                held_tickers={"AAPL", "BAD"},
+            )
+
+        tickers = [s.ticker for s in risky_insight.alternatives.suggestions]
+        assert "AAPL" not in tickers
+        assert "BAD" not in tickers
+
+    def test_falls_back_to_config_when_ai_candidates_filtered_out(
+        self, risky_insight, moderate_profile, mock_market_data_provider
+    ):
+        risky_insight.portfolio_role = PortfolioRole.GROWTH_TECH
+        # The only AI suggestion is the held ticker itself -> validated list empty
+        risky_insight._ai_suggestions = [
+            AlternativeSuggestion(ticker="BAD", reason="self")
+        ]
+
+        with patch(
+            "insight_engine.services.alternatives.get_fallback_candidates",
+            return_value=["VGT"],
+        ) as mock_fallback:
+            resolve_alternatives(
+                risky_insight,
+                moderate_profile,
+                mock_market_data_provider,
+                {"trigger_reasons": ["Low health score"]},
+                use_ai=True,
+            )
+
+        mock_fallback.assert_called_once()
+        assert risky_insight.alternatives.triggered
+
+    def test_suggestions_carry_profile_fit(
+        self, risky_insight, moderate_profile, mock_market_data_provider
+    ):
+        risky_insight.portfolio_role = PortfolioRole.GROWTH_TECH
+        risky_insight._ai_suggestions = [
+            AlternativeSuggestion(ticker="MSFT", reason="candidate")
+        ]
+
+        resolve_alternatives(
+            risky_insight,
+            moderate_profile,
+            mock_market_data_provider,
+            {"trigger_reasons": ["Low health score"]},
+            use_ai=True,
+        )
+
+        for suggestion in risky_insight.alternatives.suggestions:
+            assert suggestion.profile_fit_score is not None
+            assert suggestion.profile_fit_score >= 50

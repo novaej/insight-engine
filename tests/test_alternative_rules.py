@@ -147,3 +147,28 @@ class TestFilterAndRankCandidates:
     def test_empty_candidates(self, low_risk_profile):
         result = filter_and_rank_candidates([], low_risk_profile)
         assert result == []
+
+
+def test_low_profile_fit_candidates_filtered():
+    from insight_engine.domain.entities import UserProfile
+    from insight_engine.domain.enums import InvestmentObjective, RiskProfile
+    from insight_engine.rules.alternative_rules import filter_and_rank_candidates
+
+    profile = UserProfile(
+        risk=RiskProfile.moderate, horizon="long", objective=InvestmentObjective.growth
+    )
+    candidates = [
+        {"ticker": "FITS", "health_score": 60, "profile_fit_score": 70,
+         "annualized_volatility": 0.15, "max_drawdown": -0.10},
+        {"ticker": "NOFIT", "health_score": 90, "profile_fit_score": 35,
+         "annualized_volatility": 0.15, "max_drawdown": -0.10},
+        {"ticker": "UNKNOWN_FIT", "health_score": 50,
+         "annualized_volatility": 0.15, "max_drawdown": -0.10},
+    ]
+
+    result = filter_and_rank_candidates(candidates, profile)
+    tickers = [c["ticker"] for c in result]
+
+    assert "NOFIT" not in tickers  # high health but poor fit is still excluded
+    assert "FITS" in tickers
+    assert "UNKNOWN_FIT" in tickers  # missing fit is not penalized
