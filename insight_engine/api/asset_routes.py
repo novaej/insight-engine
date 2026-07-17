@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from insight_engine.adapters.caching import CachingMarketDataProvider
 from insight_engine.ai.handlers import generate_explanation
 from insight_engine.api.schemas import (
     AlternativeResponse,
@@ -71,6 +72,8 @@ def _to_record(insight: Insight) -> InsightRecord:
             "debt_to_equity": insight.metrics.debt_to_equity,
             "annualized_volatility": insight.metrics.annualized_volatility,
             "max_drawdown": insight.metrics.max_drawdown,
+            "benchmark_ticker": insight.metrics.benchmark_ticker,
+            "benchmark_above_sma200": insight.metrics.benchmark_above_sma200,
         },
         horizon=insight.horizon.value,
         scenario=insight.scenario,
@@ -99,7 +102,7 @@ async def analyze_asset_endpoint(
         )
 
     try:
-        market_data_provider = get_market_data_provider()
+        market_data_provider = CachingMarketDataProvider(get_market_data_provider())
         insight, info = analyze_asset(request.ticker, user_profile, market_data_provider)
 
         # Prepare alternatives context (scores, role, news, trigger check)
@@ -170,6 +173,8 @@ def _build_insight_response(insight: Insight) -> InsightResponse:
             debt_to_equity=insight.metrics.debt_to_equity,
             annualized_volatility=insight.metrics.annualized_volatility,
             max_drawdown=insight.metrics.max_drawdown,
+            benchmark_ticker=insight.metrics.benchmark_ticker,
+            benchmark_above_sma200=insight.metrics.benchmark_above_sma200,
         ),
         horizon=insight.horizon,
         scenario=insight.scenario,

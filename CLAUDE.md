@@ -90,7 +90,7 @@ Non-AI logic that classifies asset states. Each asset is evaluated on five indep
 | Valuation | cheap, reasonable, expensive, inconclusive | P/E vs historical avg |
 | Fundamentals | strong, mixed, weak | Revenue growth, margins, debt |
 | Risk/Volatility | low, medium, high | Volatility, max drawdown |
-| Market Context | favorable, adverse | S&P 500 vs SMA 200 |
+| Market Context | favorable, adverse | Role benchmark index (config/benchmarks.json) vs its SMA 200 |
 
 These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `neutral`, `risky`, or `unattractive`.
 

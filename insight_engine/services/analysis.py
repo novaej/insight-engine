@@ -1,28 +1,30 @@
+import logging
+
 from insight_engine.domain.entities import DimensionResults, Insight, MetricsSummary, UserProfile
 from insight_engine.ports import MarketDataProvider
+from insight_engine.rules.benchmark_rules import get_benchmark_ticker
 from insight_engine.rules.fundamentals_rules import evaluate_fundamentals
 from insight_engine.rules.horizon_rules import determine_horizon
 from insight_engine.rules.market_context_rules import evaluate_market_context
 from insight_engine.rules.risk_rules import evaluate_risk
+from insight_engine.rules.role_rules import classify_role
 from insight_engine.rules.synthesis import synthesize_state
 from insight_engine.rules.trend_rules import evaluate_trend
 from insight_engine.rules.valuation_rules import evaluate_valuation
 from insight_engine.services.metrics import calculate_metrics
+
+logger = logging.getLogger(__name__)
 
 
 def analyze_asset(
     ticker: str,
     user_profile: UserProfile | None = None,
     market_data_provider: MarketDataProvider | None = None,
-    sp500_hist=None,
 ) -> tuple[Insight, dict]:
     """Run the full analysis pipeline for a single asset.
 
-    Returns a tuple of (Insight, info_dict) where info_dict is the raw
-    asset info from the market data provider.
-
-    Pass sp500_hist to reuse an already-fetched S&P 500 history (e.g. when
-    analyzing many assets in one request).
+    Market context is evaluated against the asset's role benchmark (e.g. QQQ
+    for GROWTH_TECH), never a generic index. Returns (Insight, info_dict).
     """
     if market_data_provider is None:
         from insight_engine.providers import get_market_data_provider
@@ -30,10 +32,16 @@ def analyze_asset(
 
     hist = market_data_provider.fetch_history(ticker)
     info = market_data_provider.fetch_info(ticker)
-    if sp500_hist is None:
-        sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
 
-    metrics = calculate_metrics(hist, info, sp500_hist)
+    role = classify_role(info)
+    benchmark_ticker = get_benchmark_ticker(role)
+    try:
+        benchmark_hist = market_data_provider.fetch_history(benchmark_ticker, period="1y")
+    except Exception as e:
+        logger.warning(f"Failed to fetch benchmark {benchmark_ticker} for {ticker}: {e}")
+        benchmark_hist = None
+
+    metrics = calculate_metrics(hist, info, benchmark_hist, benchmark_ticker)
     dimensions = evaluate_dimensions(metrics)
     asset_state = synthesize_state(dimensions)
     horizon = determine_horizon(asset_state, dimensions, user_profile)
@@ -44,6 +52,7 @@ def analyze_asset(
         dimensions=dimensions,
         metrics=metrics,
         horizon=horizon,
+        portfolio_role=role,
     )
     return insight, info
 

@@ -122,14 +122,24 @@ unit normalization.
 **How they're used:** Together they drive the fundamentals dimension
 (strong / mixed / weak) per the thresholds in `business_rules.md` §4.3.
 
-## 7. Market Context (S&P 500 vs its SMA 200)
+## 7. Market Context (role benchmark vs its SMA 200)
 
-**What it is:** A single yes/no reading of the overall market weather: is the S&P
-500 index currently trading above its own 200-day moving average? Historically,
-markets above their 200-day average are considered in a broad uptrend.
+**What it is:** A yes/no reading of the weather in the asset's *own* market
+segment: is the asset's role benchmark index trading above its 200-day moving
+average? A tech stock is judged against QQQ, a dividend asset against VYM, a
+bond fund against AGG — not everything against the S&P 500.
 
-**How it's computed:** Fetch 1 year of S&P 500 (^GSPC) history, compute its SMA 200,
-and compare the latest close against it.
+**How it's computed:** The asset's portfolio role (section 8 of
+business_rules.md) selects a benchmark ticker from `config/benchmarks.json`
+(GROWTH_TECH → QQQ, DIVIDEND_INCOME → VYM, DEFENSIVE → XLP,
+EMERGING_MARKETS → EEM, BONDS_STABILITY → AGG, US_LARGE_CAP_CORE → ^GSPC).
+One year of that index's history is fetched, its SMA 200 computed, and the
+latest close compared against it.
+
+**Transparency:** every insight's metrics expose `benchmark_ticker` (what the
+asset was judged against) and `benchmark_above_sma200` (the raw signal). If
+benchmark data was unavailable the signal is `null` and the dimension defaults
+to favorable — no silent S&P fallback.
 
 **How it's used:** Classifies market context as favorable (above) or adverse
 (below), which the synthesis rules combine with asset-level signals — e.g. high

@@ -41,7 +41,7 @@ def bullish_metrics():
         debt_to_equity=0.5,
         max_drawdown=-0.10,
         annualized_volatility=0.18,
-        sp500_above_sma200=True,
+        benchmark_above_sma200=True,
     )
 
 
@@ -59,7 +59,7 @@ def bearish_metrics():
         debt_to_equity=2.5,
         max_drawdown=-0.40,
         annualized_volatility=0.50,
-        sp500_above_sma200=False,
+        benchmark_above_sma200=False,
     )
 
 

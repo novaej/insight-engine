@@ -1,6 +1,5 @@
 from insight_engine.domain.entities import NewsFlags
 
-
 # Keyword sets for each risk flag
 _REGULATORY_KEYWORDS = [
     "regulatory", "regulation", "sec", "antitrust", "fine", "fined",

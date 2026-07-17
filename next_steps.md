@@ -66,7 +66,14 @@ exposure.
 - Portfolio-level summary gains a real overview: total value, weight table,
   aggregate risk weighted by position size instead of a simple count.
 
-## P3 — Sector/role-aware market context benchmarks
+## P3 — Sector/role-aware market context benchmarks ✅ BENCHMARKS DONE (2026-07-17)
+
+Implemented: `config/benchmarks.json` role→index map, market context judged
+against the role benchmark only (no S&P fallback — per user decision), full
+transparency (`benchmark_ticker` + `benchmark_above_sma200` in every insight's
+metrics), and a request-scoped thread-safe cache (`adapters/caching.py`)
+replacing the ^GSPC prefetch. **Still open from this section:** dynamic
+candidate discovery (below) — needs a data-source design pass.
 
 **Why:** the S&P 500 vs SMA 200 check is a blunt instrument — an energy stock, a
 financials ETF, and a bond fund all get judged against the same "market weather."

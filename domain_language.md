@@ -100,7 +100,10 @@ Values:
 ---
 
 ## 9. Market Context
-General environment of the financial market.
+The environment of the asset's own market segment, judged against its **role
+benchmark index** (e.g. QQQ for GROWTH_TECH, AGG for BONDS_STABILITY) versus
+that benchmark's 200-day SMA. The benchmark ticker used is always exposed in
+the insight's metrics.
 
 Values:  
 - favorable  

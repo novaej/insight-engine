@@ -88,6 +88,12 @@ Body:
 - `use_ai` (default true): false skips OpenAI (mechanical text instead)
 - `language` (optional ISO code, e.g. `es`): translates AI text via Azure
 
+Market context is evaluated against the asset's **role benchmark** (e.g. QQQ
+for GROWTH_TECH; map in `config/benchmarks.json`). Each insight's metrics
+expose `benchmark_ticker` and `benchmark_above_sma200` so it's always visible
+what the asset was judged against; a `null` signal means benchmark data was
+unavailable and the dimension defaulted to favorable.
+
 Alternative suggestions are filtered by the user's risk tolerance **and**
 profile fit (≥ 50), never include tickers already held in the portfolio, and
 fall back to the config candidate universe when the AI's candidates are all

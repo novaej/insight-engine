@@ -115,9 +115,16 @@ def calculate_max_drawdown(prices: pd.Series) -> float | None:
 
 
 def calculate_metrics(
-    hist: pd.DataFrame, info: dict, sp500_hist: pd.DataFrame | None = None
+    hist: pd.DataFrame,
+    info: dict,
+    benchmark_hist: pd.DataFrame | None = None,
+    benchmark_ticker: str | None = None,
 ) -> MetricsSummary:
-    """Calculate all metrics from historical data and ticker info."""
+    """Calculate all metrics from historical data and ticker info.
+
+    benchmark_hist/benchmark_ticker describe the asset's role benchmark index
+    (e.g. QQQ for GROWTH_TECH) used for the market-context signal.
+    """
     close = hist["Close"] if "Close" in hist.columns else pd.Series(dtype=float)
     high = hist["High"] if "High" in hist.columns else pd.Series(dtype=float)
     low = hist["Low"] if "Low" in hist.columns else pd.Series(dtype=float)
@@ -154,12 +161,12 @@ def calculate_metrics(
     if len(high) >= 2 and len(low) >= 2:
         parabolic_sar = calculate_parabolic_sar(high, low, close)
 
-    sp500_above_sma200 = None
-    if sp500_hist is not None and len(sp500_hist) > 0:
-        sp500_close = sp500_hist["Close"]
-        sp500_sma200 = calculate_sma(sp500_close, 200)
-        if sp500_sma200 is not None and len(sp500_close) > 0:
-            sp500_above_sma200 = float(sp500_close.iloc[-1]) > sp500_sma200
+    benchmark_above_sma200 = None
+    if benchmark_hist is not None and len(benchmark_hist) > 0:
+        benchmark_close = benchmark_hist["Close"]
+        benchmark_sma200 = calculate_sma(benchmark_close, 200)
+        if benchmark_sma200 is not None and len(benchmark_close) > 0:
+            benchmark_above_sma200 = float(benchmark_close.iloc[-1]) > benchmark_sma200
 
     return MetricsSummary(
         sma_50=_finite(sma_50),
@@ -172,6 +179,7 @@ def calculate_metrics(
         debt_to_equity=_finite(debt_to_equity),
         max_drawdown=_finite(max_drawdown),
         annualized_volatility=_finite(annualized_volatility),
-        sp500_above_sma200=sp500_above_sma200,
+        benchmark_ticker=benchmark_ticker,
+        benchmark_above_sma200=benchmark_above_sma200,
         parabolic_sar=_finite(parabolic_sar),
     )

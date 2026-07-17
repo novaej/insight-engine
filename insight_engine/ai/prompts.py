@@ -21,7 +21,7 @@ Trend: {trend}
 Valuation: {valuation}
 Fundamentals: {fundamentals}
 Risk Level: {risk_level}
-Market Context: {market_context}
+Market Context: {market_context} (benchmark: {benchmark_ticker})
 Horizon: {horizon}
 
 Key Metrics:
@@ -54,7 +54,7 @@ Trend: {trend}
 Valuation: {valuation}
 Fundamentals: {fundamentals}
 Risk Level: {risk_level}
-Market Context: {market_context}
+Market Context: {market_context} (benchmark: {benchmark_ticker})
 Horizon: {horizon}
 
 Key Metrics:
@@ -100,7 +100,7 @@ Trend: {trend}
 Valuation: {valuation}
 Fundamentals: {fundamentals}
 Risk Level: {risk_level}
-Market Context: {market_context}
+Market Context: {market_context} (benchmark: {benchmark_ticker})
 Horizon: {horizon}
 Key Metrics:
 - Current Price: {current_price}

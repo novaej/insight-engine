@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from insight_engine.adapters.caching import CachingMarketDataProvider
 from insight_engine.ai.handlers import generate_batch_explanations
 from insight_engine.api.asset_routes import _build_insight_response, _to_record
 from insight_engine.api.deps import get_current_user, get_user_portfolio
@@ -61,21 +62,16 @@ async def _run_analysis(
     Insights are appended, never deleted — older rows form the history.
     Returns (insights, overall_risk, summary, total_value, concentration).
     """
-    market_data_provider = get_market_data_provider()
-
-    # Fetch the S&P 500 history once; it's identical for every asset.
-    sp500_hist = await asyncio.to_thread(
-        market_data_provider.fetch_history, "^GSPC", "1y"
-    )
+    # Request-scoped cache: assets sharing a role benchmark (and candidate
+    # validations) reuse the same fetches across worker threads.
+    market_data_provider = CachingMarketDataProvider(get_market_data_provider())
 
     # Deterministic analysis is I/O-bound (market data fetches); run assets
     # concurrently in threads, capped to stay polite to the data provider.
     semaphore = asyncio.Semaphore(5)
 
     def _analyze_one_sync(asset: PortfolioAsset) -> tuple[Insight, dict | None]:
-        insight, info = analyze_asset(
-            asset.ticker, user_profile, market_data_provider, sp500_hist=sp500_hist
-        )
+        insight, info = analyze_asset(asset.ticker, user_profile, market_data_provider)
         alternatives_ctx = prepare_alternatives_context(
             insight, info, user_profile, market_data_provider
         )
@@ -126,7 +122,6 @@ async def _run_analysis(
                     market_data_provider,
                     alternatives_ctx,
                     use_ai,
-                    sp500_hist,
                     held_tickers,
                 )
             except Exception as e:
@@ -450,6 +445,8 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
             debt_to_equity=mets.get("debt_to_equity"),
             annualized_volatility=mets.get("annualized_volatility"),
             max_drawdown=mets.get("max_drawdown"),
+            benchmark_ticker=mets.get("benchmark_ticker"),
+            benchmark_above_sma200=mets.get("benchmark_above_sma200"),
         ),
         horizon=Horizon(record.horizon),
         scenario=record.scenario or "",

@@ -43,7 +43,8 @@ class MetricsSummary:
     debt_to_equity: float | None = None
     max_drawdown: float | None = None
     annualized_volatility: float | None = None
-    sp500_above_sma200: bool | None = None
+    benchmark_ticker: str | None = None
+    benchmark_above_sma200: bool | None = None
     parabolic_sar: float | None = None
 
 

@@ -97,6 +97,8 @@ class MetricsResponse(BaseModel):
     debt_to_equity: float | None = None
     annualized_volatility: float | None = None
     max_drawdown: float | None = None
+    benchmark_ticker: str | None = None
+    benchmark_above_sma200: bool | None = None
 
 
 class AlternativeResponse(BaseModel):

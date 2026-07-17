@@ -1,0 +1,9 @@
+{
+  "US_LARGE_CAP_CORE": "^GSPC",
+  "GROWTH_TECH": "QQQ",
+  "DIVIDEND_INCOME": "VYM",
+  "DEFENSIVE": "XLP",
+  "EMERGING_MARKETS": "EEM",
+  "BONDS_STABILITY": "AGG",
+  "default": "^GSPC"
+}

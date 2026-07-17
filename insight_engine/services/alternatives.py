@@ -77,7 +77,6 @@ def resolve_alternatives(
     market_data_provider: MarketDataProvider,
     alternatives_context: dict,
     use_ai: bool = True,
-    sp500_hist=None,
     held_tickers: set[str] | None = None,
 ) -> Insight:
     """Resolve alternative suggestions after AI call (if applicable).
@@ -89,9 +88,6 @@ def resolve_alternatives(
     """
     trigger_reasons = alternatives_context.get("trigger_reasons", [])
     role = insight.portfolio_role
-
-    if sp500_hist is None:
-        sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
 
     exclude = {insight.ticker.upper()}
     if held_tickers:
@@ -108,7 +104,6 @@ def resolve_alternatives(
             user_profile=user_profile,
             market_data_provider=market_data_provider,
             exclude_tickers=exclude,
-            sp500_hist=sp500_hist,
         )
     if not suggestions:
         # Fallback: use JSON config candidates (also when AI candidates were
@@ -118,7 +113,6 @@ def resolve_alternatives(
             exclude_tickers=exclude,
             user_profile=user_profile,
             market_data_provider=market_data_provider,
-            sp500_hist=sp500_hist,
         )
 
     insight.alternatives = AlternativesResult(
@@ -139,7 +133,6 @@ def _validate_ai_suggestions(
     user_profile: UserProfile,
     market_data_provider: MarketDataProvider,
     exclude_tickers: set[str],
-    sp500_hist=None,
 ) -> list[AlternativeSuggestion]:
     """Validate AI-suggested candidates with real metrics."""
     candidates_data = []
@@ -151,7 +144,6 @@ def _validate_ai_suggestions(
             suggestion.ticker,
             user_profile,
             market_data_provider,
-            sp500_hist,
             reason=suggestion.reason,
         )
         if candidate is not None:
@@ -166,7 +158,6 @@ def _get_fallback_suggestions(
     exclude_tickers: set[str],
     user_profile: UserProfile,
     market_data_provider: MarketDataProvider,
-    sp500_hist=None,
 ) -> list[AlternativeSuggestion]:
     """Fetch metrics for fallback candidates, score and filter them."""
     candidate_tickers = get_fallback_candidates(role, "")
@@ -175,9 +166,7 @@ def _get_fallback_suggestions(
     for ticker in candidate_tickers:
         if ticker.upper() in exclude_tickers:
             continue
-        candidate = _evaluate_candidate(
-            ticker, user_profile, market_data_provider, sp500_hist
-        )
+        candidate = _evaluate_candidate(ticker, user_profile, market_data_provider)
         if candidate is not None:
             candidate["reason"] = (
                 f"Similar role ({role.value}) with health score "
@@ -193,18 +182,19 @@ def _evaluate_candidate(
     ticker: str,
     user_profile: UserProfile,
     market_data_provider: MarketDataProvider,
-    sp500_hist=None,
     reason: str = "",
 ) -> dict | None:
     """Fetch real metrics for a candidate and score it (health + profile fit)."""
     try:
         hist = market_data_provider.fetch_history(ticker, period="1y")
         info = market_data_provider.fetch_info(ticker)
-        if sp500_hist is None:
-            sp500_hist = market_data_provider.fetch_history("^GSPC", period="1y")
+
+        from insight_engine.rules.benchmark_rules import get_benchmark_ticker
+        benchmark_ticker = get_benchmark_ticker(classify_role(info))
+        benchmark_hist = market_data_provider.fetch_history(benchmark_ticker, period="1y")
 
         from insight_engine.services.metrics import calculate_metrics
-        metrics = calculate_metrics(hist, info, sp500_hist)
+        metrics = calculate_metrics(hist, info, benchmark_hist, benchmark_ticker)
         dimensions = evaluate_dimensions(metrics)
 
         return {

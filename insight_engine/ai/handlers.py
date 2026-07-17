@@ -206,6 +206,7 @@ def _asset_prompt_kwargs(insight: Insight) -> dict:
         fundamentals=insight.dimensions.fundamentals.value,
         risk_level=insight.dimensions.risk_level.value,
         market_context=insight.dimensions.market_context.value,
+        benchmark_ticker=insight.metrics.benchmark_ticker or "N/A",
         horizon=insight.horizon.value,
         current_price=_fmt(metrics.current_price),
         sma_50=_fmt(metrics.sma_50),

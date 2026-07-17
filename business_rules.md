@@ -89,7 +89,20 @@ Historical drawdowns and volatility determine the risk level.
 - Adverse
 
 **General rule:**  
-The broad market environment influences the asset’s overall risk.
+Each asset is judged against its **role benchmark index** (configured in
+`config/benchmarks.json`): US_LARGE_CAP_CORE → ^GSPC, GROWTH_TECH → QQQ,
+DIVIDEND_INCOME → VYM, DEFENSIVE → XLP, EMERGING_MARKETS → EEM,
+BONDS_STABILITY → AGG.
+
+- Benchmark above its 200-day SMA → favorable
+- Benchmark below its 200-day SMA → adverse
+- Benchmark data unavailable → favorable by default; the missing signal remains
+  visible (`benchmark_above_sma200: null`) so consumers can tell the default was
+  applied. There is **no** S&P 500 fallback — the S&P is only used when it *is*
+  the asset's role benchmark.
+
+The benchmark ticker used is always exposed in the insight's metrics
+(`benchmark_ticker`) for transparency.
 
 ---
 
