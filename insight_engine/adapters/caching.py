@@ -40,3 +40,9 @@ class CachingMarketDataProvider:
         return self._cached(
             ("news", ticker.upper()), lambda: self._inner.fetch_news(ticker)
         )
+
+    def fetch_holdings(self, etf_ticker: str) -> list[str]:
+        return self._cached(
+            ("holdings", etf_ticker.upper()),
+            lambda: self._inner.fetch_holdings(etf_ticker),
+        )

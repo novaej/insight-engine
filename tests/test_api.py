@@ -388,3 +388,30 @@ def test_invalid_horizon_rejected():
         },
     )
     assert response.status_code == 422
+
+
+@patch("insight_engine.api.portfolio_routes.resolve_alternatives")
+@patch("insight_engine.api.portfolio_routes.prepare_alternatives_context", return_value={"trigger_reasons": ["x"]})
+@patch("insight_engine.api.portfolio_routes.get_market_data_provider")
+@patch("insight_engine.api.portfolio_routes.generate_batch_explanations")
+@patch("insight_engine.api.portfolio_routes.analyze_asset")
+def test_include_alternatives_false_skips_resolution(
+    mock_analyze, mock_explain, mock_provider, mock_prepare, mock_resolve
+):
+    mock_analyze.side_effect = lambda ticker, *a, **kw: (_mock_insight(ticker.upper()), {"quoteType": "EQUITY"})
+    mock_explain.return_value = None
+
+    response = client.post(
+        "/portfolio/analyze",
+        json={
+            "user_profile": {"risk": "moderate", "horizon": "long", "goal": "growth"},
+            "assets": [{"ticker": "AAPL", "quantity": 1}],
+            "use_ai": False,
+            "include_alternatives": False,
+        },
+    )
+    assert response.status_code == 200
+    # Alternatives resolution (candidate discovery + fetches) never runs
+    mock_resolve.assert_not_called()
+    alt = response.json()["insights"][0]["alternatives"]
+    assert alt is None or alt["triggered"] is False

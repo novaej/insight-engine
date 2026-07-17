@@ -75,6 +75,7 @@ class AnalyzeAssetRequest(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=10)
     user_profile: UserProfileRequest | None = None
     use_ai: bool = True
+    include_alternatives: bool = True
     language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
 
@@ -179,6 +180,7 @@ class PortfolioRequest(BaseModel):
         ),
     )
     use_ai: bool = True
+    include_alternatives: bool = True
     language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
 
@@ -186,6 +188,7 @@ class PortfolioUpdateRequest(BaseModel):
     user_profile: UserProfileRequest | None = None
     assets: list[PortfolioAsset] = Field(..., min_length=1, max_length=100)
     use_ai: bool = True
+    include_alternatives: bool = True
     language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
 

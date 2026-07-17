@@ -25,7 +25,12 @@ from insight_engine.api.schemas import (
     UserProfileRequest,
 )
 from insight_engine.database import get_session
-from insight_engine.domain.entities import ConcentrationResult, Insight, UserProfile
+from insight_engine.domain.entities import (
+    AlternativesResult,
+    ConcentrationResult,
+    Insight,
+    UserProfile,
+)
 from insight_engine.domain.enums import (
     AssetState,
     Fundamentals,
@@ -56,6 +61,7 @@ async def _run_analysis(
     language: str | None,
     session: AsyncSession,
     portfolio_id: int,
+    include_alternatives: bool = True,
 ) -> tuple[list[Insight], RiskLevel, str, float | None, ConcentrationResult]:
     """Run analysis on all assets, persist insights, and return results.
 
@@ -72,9 +78,14 @@ async def _run_analysis(
 
     def _analyze_one_sync(asset: PortfolioAsset) -> tuple[Insight, dict | None]:
         insight, info = analyze_asset(asset.ticker, user_profile, market_data_provider)
+        # Always prepare context (sets role/scores/news on the insight); the
+        # include_alternatives flag only gates candidate resolution below.
         alternatives_ctx = prepare_alternatives_context(
             insight, info, user_profile, market_data_provider
         )
+        if not include_alternatives:
+            alternatives_ctx = None
+            insight.alternatives = AlternativesResult(triggered=False)
         return insight, alternatives_ctx
 
     async def _analyze_one(asset: PortfolioAsset) -> tuple[Insight, dict | None]:
@@ -279,6 +290,7 @@ async def analyze_portfolio_endpoint(
         language=request.language,
         session=session,
         portfolio_id=portfolio.id,
+        include_alternatives=request.include_alternatives,
     )
 
     portfolio.overall_risk = overall_risk.value
@@ -385,6 +397,7 @@ async def update_portfolio_endpoint(
         language=request.language,
         session=session,
         portfolio_id=portfolio.id,
+        include_alternatives=request.include_alternatives,
     )
 
     portfolio.overall_risk = overall_risk.value

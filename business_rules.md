@@ -236,7 +236,9 @@ Alternatives are triggered when **any** of these conditions are met:
 
 **Candidate sources (fallback chain):**
 1. **AI-driven** (`use_ai=True`): The LLM suggests 3–5 candidates in the same portfolio role; each candidate is then validated with real market metrics.
-2. **JSON fallback**: Static `config/candidate_universe.json` mapping from role → ticker list. Used when `use_ai=False`, when the AI fails, **or when every AI candidate was filtered out** — a trigger should not produce an empty list if the config has viable candidates.
+2. **Discovery + config**: Used when `use_ai=False`, when the AI fails, **or when every AI candidate was filtered out**. Candidates are the live top holdings of the role's benchmark ETF (`config/discovery_etfs.json`: US_LARGE_CAP_CORE → SPY, GROWTH_TECH → QQQ, DIVIDEND_INCOME → VYM, DEFENSIVE → XLP) **unioned** with the static `config/candidate_universe.json` list. Discovery augments, never replaces — roles without a usable equity-holdings ETF (BONDS_STABILITY, EMERGING_MARKETS) and any fetch failure fall back to the static list. Foreign listings are filtered out (US-listed symbols only).
+
+**`include_alternatives` flag:** when a request sets `include_alternatives=false`, alternatives are not triggered or resolved at all (no candidate discovery or fetching) — but role, scores, and news flags still populate the insight. Defaults to true.
 
 **Hard filters (exclude candidate if):**
 - `annualized_volatility` > user's risk threshold

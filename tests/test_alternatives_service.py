@@ -36,6 +36,9 @@ def mock_market_data_provider():
     # Default: return empty news
     provider.fetch_news.return_value = []
 
+    # Default: no discovered holdings (exercise the static candidate path)
+    provider.fetch_holdings.return_value = []
+
     # Default: return minimal price history
     dates = pd.date_range(start="2024-01-01", periods=250, freq="B")
     prices = 100 + np.cumsum(np.random.randn(250) * 0.5)
@@ -164,7 +167,7 @@ class TestResolveAlternatives:
                           "management_change": False, "litigation_risk": False},
         }
 
-        with patch("insight_engine.services.alternatives.get_fallback_candidates") as mock_get:
+        with patch("insight_engine.services.alternatives.discover_candidates") as mock_get:
             mock_get.return_value = ["QQQ", "VGT"]
 
             resolve_alternatives(
@@ -213,7 +216,7 @@ class TestResolveAlternatives:
                           "management_change": False, "litigation_risk": False},
         }
 
-        with patch("insight_engine.services.alternatives.get_fallback_candidates") as mock_get:
+        with patch("insight_engine.services.alternatives.discover_candidates") as mock_get:
             mock_get.return_value = ["QQQ"]
 
             resolve_alternatives(
@@ -232,7 +235,7 @@ class TestEndToEnd:
         ctx = prepare_alternatives_context(risky_insight, info, moderate_profile, mock_market_data_provider)
         assert ctx is not None
 
-        with patch("insight_engine.services.alternatives.get_fallback_candidates") as mock_get:
+        with patch("insight_engine.services.alternatives.discover_candidates") as mock_get:
             mock_get.return_value = ["QQQ", "MSFT"]
 
             resolve_alternatives(
@@ -266,7 +269,7 @@ class TestCandidateQuality:
         ]
 
         with patch(
-            "insight_engine.services.alternatives.get_fallback_candidates",
+            "insight_engine.services.alternatives.discover_candidates",
             return_value=[],
         ):
             resolve_alternatives(
@@ -292,7 +295,7 @@ class TestCandidateQuality:
         ]
 
         with patch(
-            "insight_engine.services.alternatives.get_fallback_candidates",
+            "insight_engine.services.alternatives.discover_candidates",
             return_value=["VGT"],
         ) as mock_fallback:
             resolve_alternatives(

@@ -76,23 +76,17 @@ the role benchmark only (no S&P fallback — per user decision), full transparen
 when data unavailable so the default is visible), and a request-scoped
 thread-safe cache (`adapters/caching.py`) replacing the ^GSPC prefetch.
 
-## P3b — Dynamic candidate discovery
+## P3b — Dynamic candidate discovery ✅ DONE (2026-07-17)
 
-**Why:** alternative candidates still come from the fixed
-`config/candidate_universe.json` list (now correctly filtered — risk tolerance,
-profile fit ≥ 50, not held — but a small static pool). The fixed list is the
-remaining weak link in the alternatives feature.
-
-**What to build (needs a data-source design pass):**
-
-- Screen candidates by portfolio role/sector from market data — e.g.
-  constituents of the role's benchmark ETF, or a sector screen — instead of the
-  static JSON list. The config file becomes the offline last resort.
-- Candidates still pass the same validation chain: real metrics →
-  risk-tolerance filters → profile fit ≥ 50 → not already held → rank by health.
-- Open question: yfinance doesn't cleanly expose ETF constituents / sector
-  screens, so the data source is the main thing to resolve (a maintained
-  constituent list, a screener API, or scraping an index provider).
+Implemented: candidates are the live top holdings of each role's benchmark ETF
+(`config/discovery_etfs.json`: SPY/QQQ/VYM/XLP) via yfinance
+`funds_data.top_holdings` (`MarketDataProvider.fetch_holdings`), unioned with the
+static `config/candidate_universe.json` and run through the same validation chain.
+Discovery augments (never replaces): bonds/emerging-markets roles and any fetch
+failure fall back to the static list; foreign listings are filtered to US symbols.
+Also added the `include_alternatives` request flag to skip alternatives entirely.
+(Deferred: sector-screen discovery for roles without a clean holdings ETF — the
+data source there is still unresolved.)
 
 ## P4 — Active monitoring & email alerts ("the watchdog")
 
@@ -163,7 +157,7 @@ scores and alternative suggestions.
 | P1 persistence rework | — | large | ✅ done |
 | P2 position-aware analysis | P1 | medium | ✅ done |
 | P3 benchmark map | — (parallel-friendly) | small | ✅ done |
-| P3b dynamic candidate discovery | — (needs data source) | medium | open |
+| P3b dynamic candidate discovery | — | medium | ✅ done |
 | P4 watchdog + email | P1, better with P2 | large | open |
 | P4b goal-aware scoring | — (parallel-friendly) | medium | open |
 | P5 hardening | — | small, continuous | ongoing |

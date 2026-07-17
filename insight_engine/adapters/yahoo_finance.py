@@ -14,3 +14,14 @@ class YahooFinanceProvider:
     def fetch_news(self, ticker: str) -> list[dict]:
         t = yf.Ticker(ticker)
         return t.news or []
+
+    def fetch_holdings(self, etf_ticker: str) -> list[str]:
+        """Top holding tickers of an ETF. Empty list if unavailable.
+
+        Indices (e.g. ^GSPC) and bond/foreign funds have no usable equity
+        holdings and return []."""
+        try:
+            top = yf.Ticker(etf_ticker).funds_data.top_holdings
+            return [str(t) for t in top.index]
+        except Exception:
+            return []

@@ -96,8 +96,10 @@ unavailable and the dimension defaulted to favorable.
 
 Alternative suggestions are filtered by the user's risk tolerance **and**
 profile fit (≥ 50), never include tickers already held in the portfolio, and
-fall back to the config candidate universe when the AI's candidates are all
-filtered out. Each suggestion carries its health score and profile fit score.
+draw from the live holdings of the role's benchmark ETF unioned with the config
+candidate universe. Each suggestion carries its health score and profile fit
+score. Pass `include_alternatives: false` to skip alternatives entirely (faster,
+fewer fetches); role and scores still populate each insight.
 
 Returns per-asset insights plus portfolio-level `overall_risk`, `summary`,
 `total_value`, and `concentration` (state + flagged tickers/roles). Each insight

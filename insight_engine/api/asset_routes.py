@@ -13,7 +13,7 @@ from insight_engine.api.schemas import (
     PositionContextResponse,
 )
 from insight_engine.database import get_session
-from insight_engine.domain.entities import Insight, UserProfile
+from insight_engine.domain.entities import AlternativesResult, Insight, UserProfile
 from insight_engine.domain.models import InsightRecord
 from insight_engine.providers import get_market_data_provider
 from insight_engine.services.alternatives import prepare_alternatives_context, resolve_alternatives
@@ -105,12 +105,17 @@ async def analyze_asset_endpoint(
         market_data_provider = CachingMarketDataProvider(get_market_data_provider())
         insight, info = analyze_asset(request.ticker, user_profile, market_data_provider)
 
-        # Prepare alternatives context (scores, role, news, trigger check)
+        # Prepare alternatives context (scores, role, news, trigger check).
+        # Always run when a profile is present so scores/role/news populate the
+        # insight; the include_alternatives flag only gates candidate resolution.
         alternatives_ctx = None
         if user_profile:
             alternatives_ctx = prepare_alternatives_context(
                 insight, info, user_profile, market_data_provider
             )
+            if not request.include_alternatives:
+                alternatives_ctx = None
+                insight.alternatives = AlternativesResult(triggered=False)
 
         if request.use_ai:
             insight = generate_explanation(

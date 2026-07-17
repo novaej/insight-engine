@@ -78,3 +78,13 @@ def test_caching_provider_dedupes_fetches():
 
     cached.fetch_history("QQQ", "2y")  # different period is a different key
     assert inner.fetch_history.call_count == 2
+
+
+def test_caching_provider_caches_holdings():
+    inner = MagicMock()
+    inner.fetch_holdings.return_value = ["NVDA", "AAPL"]
+    cached = CachingMarketDataProvider(inner)
+
+    cached.fetch_holdings("QQQ")
+    cached.fetch_holdings("qqq")  # case-insensitive hit
+    assert inner.fetch_holdings.call_count == 1

@@ -74,7 +74,7 @@ insight_engine/
 ├── ai/           # LLM prompts and handlers (interpretation only)
 ├── adapters/     # External integrations (Yahoo Finance, OpenAI, Azure)
 ├── jobs/         # Scheduled tasks (daily analysis jobs)
-config/           # Static configuration (candidate_universe.json)
+config/           # Static config (candidate_universe.json, benchmarks.json, discovery_etfs.json)
 tests/            # Unit tests (metrics, rules, endpoints, alternatives)
 ```
 
@@ -106,7 +106,7 @@ Built on top of dimensions, computing:
 - **Health Score** (0–100): Composite of trend, fundamentals, valuation, risk, and drawdown
 - **Profile Fit Score** (0–100): Volatility/drawdown/horizon alignment with user profile
 - **News Flags**: Keyword-based risk extraction from headlines (no AI)
-- **Alternative Suggestions**: Triggered when health < 50, profile fit < 50, or news flags active. Candidates (AI-proposed, config universe as fallback) filtered by risk tolerance + profile fit ≥ 50 + not already held, ranked by health score, max 3 returned.
+- **Alternative Suggestions**: Triggered when health < 50, profile fit < 50, or news flags active (unless `include_alternatives=false` on the request). Candidates come from AI proposals, or from live role-benchmark ETF holdings (`config/discovery_etfs.json`) unioned with the `config/candidate_universe.json` fallback; all filtered by risk tolerance + profile fit ≥ 50 + not already held, ranked by health score, max 3 returned.
 - **Position Context** (`rules/concentration_rules.py`): market value, portfolio weight, and unrealized gain/loss per position; 25%/40% concentration rule; overall portfolio risk weighted by position value.
 
 ### Layer 3: AI Interpretation (LLM)

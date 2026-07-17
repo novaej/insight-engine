@@ -263,6 +263,8 @@ curl -X PUT http://localhost:8000/portfolio \
 
 Both `/assets/analyze` and `/portfolio/analyze` accept an optional `use_ai` parameter (defaults to `true`). Set to `false` to skip AI-generated explanations and avoid OpenAI API calls.
 
+They also accept `include_alternatives` (defaults to `true`). Set to `false` to skip alternative-asset suggestions entirely — faster and fewer market-data fetches, while role, scores, and news flags still populate each insight.
+
 All analysis endpoints accept an optional `language` parameter (ISO code, e.g. `es`, `fr`, `pt`) to translate AI-generated text. Requires Azure Translator credentials.
 
 `POST /portfolio/analyze` persists the portfolio (positions are synced to the `assets` list). The `assets` field is optional — omit it to analyze the currently stored positions. Use `GET /portfolio` to retrieve the portfolio with the latest insight per held ticker, or `PUT /portfolio` to update assets and trigger re-analysis. Insights are never deleted; older runs are available via `GET /insights`.

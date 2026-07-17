@@ -13,7 +13,7 @@ from insight_engine.rules.alternative_rules import (
     filter_and_rank_candidates,
     should_trigger_alternatives,
 )
-from insight_engine.rules.candidate_universe import get_fallback_candidates
+from insight_engine.rules.candidate_discovery import discover_candidates
 from insight_engine.rules.news_rules import extract_news_flags
 from insight_engine.rules.role_rules import classify_role
 from insight_engine.rules.scoring_rules import compute_health_score, compute_profile_fit_score
@@ -159,8 +159,12 @@ def _get_fallback_suggestions(
     user_profile: UserProfile,
     market_data_provider: MarketDataProvider,
 ) -> list[AlternativeSuggestion]:
-    """Fetch metrics for fallback candidates, score and filter them."""
-    candidate_tickers = get_fallback_candidates(role, "")
+    """Fetch metrics for candidate assets, score and filter them.
+
+    Candidates are the role benchmark ETF's live holdings unioned with the
+    static universe (discover_candidates); the same validation chain applies.
+    """
+    candidate_tickers = discover_candidates(role, market_data_provider)
     candidates_data = []
 
     for ticker in candidate_tickers:
