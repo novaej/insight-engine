@@ -314,3 +314,66 @@ def test_insight_history_empty():
     response = client.get("/insights?ticker=AAPL")
     assert response.status_code == 200
     assert response.json() == {"total": 0, "insights": []}
+
+
+def test_interpret_profile_endpoint():
+    with patch("insight_engine.api.profile_routes.interpret_profile") as mock_interp:
+        mock_interp.return_value = {
+            "risk": "low",
+            "horizon": "long",
+            "goal": "income",
+            "rationale": "Wants steady dividends for retirement.",
+        }
+        response = client.post(
+            "/profile/interpret",
+            json={"text": "I want steady dividend income for my retirement in 20 years"},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["risk"] == "low"
+    assert data["goal"] == "income"
+    assert data["rationale"]
+
+
+def test_interpret_profile_text_too_short():
+    response = client.post("/profile/interpret", json={"text": "grow"})
+    assert response.status_code == 422
+
+
+def test_interpret_profile_llm_failure_returns_502():
+    from insight_engine.ai.handlers import ProfileInterpretationError
+
+    with patch(
+        "insight_engine.api.profile_routes.interpret_profile",
+        side_effect=ProfileInterpretationError("Could not interpret the description"),
+    ):
+        response = client.post(
+            "/profile/interpret",
+            json={"text": "something long enough to pass validation"},
+        )
+    assert response.status_code == 502
+
+
+def test_interpret_profile_handler_validates_output():
+    import pytest as _pytest
+
+    from insight_engine.ai.handlers import ProfileInterpretationError, interpret_profile
+
+    good_provider = MagicMock()
+    good_provider.generate.return_value = (
+        '{"risk": "high", "horizon": "short", "goal": "growth", "rationale": "r"}'
+    )
+    with patch("insight_engine.ai.handlers.settings") as mock_settings:
+        mock_settings.openai_api_key = "sk-test"
+        result = interpret_profile("I want fast gains and can handle drops", good_provider)
+        assert result == {
+            "risk": "high",
+            "horizon": "short",
+            "goal": "growth",
+            "rationale": "r",
+        }
+
+        bad_provider = MagicMock()
+        bad_provider.generate.return_value = '{"risk": "extreme", "horizon": "long", "goal": "growth"}'
+        with _pytest.raises(ProfileInterpretationError):
+            interpret_profile("anything at all", bad_provider)

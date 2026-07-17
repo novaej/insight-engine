@@ -218,6 +218,27 @@
       ]
     },
     {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Interpret profile from plain words",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/profile/interpret",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"I'm saving for retirement in about 20 years. I mainly want my money to grow, and I can tolerate some ups and downs, but a huge crash would keep me up at night.\"\n}"
+            },
+            "description": "AI maps your plain-words description to {risk, horizon, goal, rationale}. Review the result and pass it as user_profile to the analyze endpoints — it is never applied automatically. Uses one small OpenAI call."
+          }
+        }
+      ]
+    },
+    {
       "name": "Insights",
       "item": [
         {

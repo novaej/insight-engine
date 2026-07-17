@@ -23,6 +23,22 @@ class UserProfileRequest(BaseModel):
     goal: InvestmentObjective = InvestmentObjective.growth
 
 
+class ProfileInterpretRequest(BaseModel):
+    text: str = Field(
+        ...,
+        min_length=10,
+        max_length=1000,
+        description="Plain-words description of what you want from your investments",
+    )
+
+
+class ProfileInterpretResponse(BaseModel):
+    risk: RiskProfile
+    horizon: str
+    goal: InvestmentObjective
+    rationale: str = ""
+
+
 class UserCreateRequest(BaseModel):
     email: str = Field(..., max_length=255, pattern=EMAIL_PATTERN)
     password: str = Field(..., min_length=8, max_length=128)

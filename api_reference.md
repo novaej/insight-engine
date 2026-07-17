@@ -27,6 +27,7 @@ password change.
 | GET | `/portfolio` | ✓ | Stored portfolio + latest insights |
 | PUT | `/portfolio` | ✓ | Replace assets and re-analyze |
 | GET | `/insights` | ✓ | Insight history with filters |
+| POST | `/profile/interpret` | ✓ | Plain words → structured user profile (AI) |
 | POST | `/assets/analyze` | — | Ad hoc single-ticker analysis |
 
 ## Users & authentication
@@ -108,6 +109,17 @@ Same as analyze-with-assets (replaces lots, re-analyzes) but keeps the stored
 Insight history for your portfolio, newest first. Every analysis run adds rows,
 so this shows how an asset's state/scores evolved over time. Query params, all
 optional: `ticker`, `from` / `to` (ISO datetimes), `limit` (1–500, default 50).
+
+## Profile
+
+### POST /profile/interpret
+Maps a plain-words description of what you want from your investments
+(`{"text": "..."}`, 10–1000 chars) to a structured profile via one small AI
+call: `{risk, horizon, goal, rationale}`, strictly validated against the domain
+values. The result is a **proposal** — review it and pass it as `user_profile`
+to the analyze endpoints; it is never applied automatically. When the text
+gives no signal for a field, the most conservative value is chosen and the
+rationale says so. 502 if the AI is unavailable or returns something invalid.
 
 ## Assets
 

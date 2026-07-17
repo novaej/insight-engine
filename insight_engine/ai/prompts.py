@@ -149,6 +149,36 @@ Include the "alternatives" key only for assets that have an Alternatives Context
 Respond with compact JSON on a single line — no indentation or extra whitespace."""
 
 
+PROFILE_INTERPRET_SYSTEM_PROMPT = """You extract a structured investor profile \
+from a free-text description. You only classify what the user expressed — you never \
+give advice, never recommend a profile, and never add information that is not implied \
+by the text."""
+
+PROFILE_INTERPRET_PROMPT_TEMPLATE = """\
+Read the investor's description of what they want from their investments and map it
+to exactly one value per field:
+
+- risk: "low" (capital preservation, can't tolerate drops), "moderate" (accepts some
+  swings for growth), or "high" (comfortable with large swings for higher potential)
+- horizon: "short" (under ~2 years), "medium" (~2-5 years), or "long" (5+ years,
+  retirement, no near-term need for the money)
+- goal: "growth" (grow capital), "income" (dividends/regular income), or
+  "capital_protection" (keep what they have)
+
+Investor's description:
+\"\"\"{text}\"\"\"
+
+Respond with compact JSON:
+{{
+  "risk": "low|moderate|high",
+  "horizon": "short|medium|long",
+  "goal": "growth|income|capital_protection",
+  "rationale": "One or two sentences quoting or paraphrasing what in the text led to this mapping"
+}}
+If the text gives no signal for a field, choose the most conservative value \
+(risk "low", horizon "medium", goal "capital_protection") and say so in the rationale."""
+
+
 def build_user_context(user_profile) -> str:
     if user_profile is None:
         return ""

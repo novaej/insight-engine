@@ -7,6 +7,8 @@ from insight_engine.ai.prompts import (
     BATCH_INSIGHT_PROMPT_TEMPLATE,
     INSIGHT_PROMPT_TEMPLATE,
     INSIGHT_WITH_ALTERNATIVES_PROMPT_TEMPLATE,
+    PROFILE_INTERPRET_PROMPT_TEMPLATE,
+    PROFILE_INTERPRET_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
     build_user_context,
 )
@@ -144,6 +146,54 @@ def generate_batch_explanations(
             _apply_parsed_explanation(
                 insight, asset_parsed, alternatives_context is not None
             )
+
+
+class ProfileInterpretationError(Exception):
+    """The LLM was unavailable or returned an invalid profile."""
+
+
+_VALID_RISK = {"low", "moderate", "high"}
+_VALID_HORIZON = {"short", "medium", "long"}
+_VALID_GOAL = {"growth", "income", "capital_protection"}
+
+
+def interpret_profile(text: str, provider: LLMProvider | None = None) -> dict:
+    """Map a free-text description of investment wishes to a user profile.
+
+    Returns {risk, horizon, goal, rationale} validated against the domain
+    enums. Raises ProfileInterpretationError when no key is configured, the
+    call fails, or the output doesn't validate — never guesses.
+    """
+    if not settings.openai_api_key:
+        raise ProfileInterpretationError("No OpenAI API key configured")
+
+    if provider is None:
+        from insight_engine.providers import get_llm_provider
+        provider = get_llm_provider()
+
+    prompt = PROFILE_INTERPRET_PROMPT_TEMPLATE.format(text=text)
+    try:
+        content = provider.generate(
+            PROFILE_INTERPRET_SYSTEM_PROMPT, prompt, temperature=0.0, max_tokens=300
+        )
+        parsed = json.loads(content)
+    except Exception as e:
+        logger.error(f"Profile interpretation error: {e}")
+        raise ProfileInterpretationError("Could not interpret the description") from e
+
+    risk = parsed.get("risk")
+    horizon = parsed.get("horizon")
+    goal = parsed.get("goal")
+    if risk not in _VALID_RISK or horizon not in _VALID_HORIZON or goal not in _VALID_GOAL:
+        logger.error(f"Profile interpretation returned invalid values: {parsed}")
+        raise ProfileInterpretationError("Interpretation produced invalid profile values")
+
+    return {
+        "risk": risk,
+        "horizon": horizon,
+        "goal": goal,
+        "rationale": str(parsed.get("rationale", "")),
+    }
 
 
 def _asset_prompt_kwargs(insight: Insight) -> dict:
