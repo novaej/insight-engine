@@ -1,0 +1,263 @@
+{
+  "info": {
+    "name": "InsightEngine",
+    "description": "Educational investment portfolio analysis API. Log in first — the Login request stores the bearer token in the {{token}} collection variable automatically; all protected requests use it.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "email", "value": "me@example.com" },
+    { "key": "password", "value": "supersecret" },
+    { "key": "token", "value": "" },
+    { "key": "ticker", "value": "AAPL" },
+    { "key": "position_id", "value": "1" },
+    { "key": "language", "value": "es" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users & Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"name\": \"Me\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (stores token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('token', pm.response.json().token);",
+                  "    console.log('Token stored in {{token}} collection variable');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/users/me"
+          }
+        },
+        {
+          "name": "Update me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Name\"\n}"
+            },
+            "description": "Also accepts email. Changing the password requires current_password and invalidates the token (log in again): {\"password\": \"newpass123\", \"current_password\": \"{{password}}\"}"
+          }
+        },
+        {
+          "name": "Delete me",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/users/me",
+            "description": "Removes the user and, via cascade, their portfolio, positions, and insight history."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Positions (lots)",
+      "item": [
+        {
+          "name": "List lots",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/portfolio/positions"
+          }
+        },
+        {
+          "name": "Add lot",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/portfolio/positions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"{{ticker}}\",\n  \"quantity\": 2.0,\n  \"purchase_price\": 180.0,\n  \"purchase_date\": \"2025-11-02\"\n}"
+            },
+            "description": "The same ticker can be added multiple times as separate lots. purchase_price and purchase_date are optional. Max 20 distinct tickers."
+          }
+        },
+        {
+          "name": "Update lot",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/portfolio/positions/{{position_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3.0\n}"
+            },
+            "description": "Partial update: quantity, purchase_price, purchase_date."
+          }
+        },
+        {
+          "name": "Delete lot",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/portfolio/positions/{{position_id}}",
+            "description": "Insight history for the ticker is kept."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Portfolio",
+      "item": [
+        {
+          "name": "Analyze stored positions",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/portfolio/analyze",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"use_ai\": true\n}"
+            },
+            "description": "Without `assets`, analyzes the stored positions. Optional: \"language\": \"{{language}}\" to translate AI text, \"use_ai\": false to skip OpenAI."
+          }
+        },
+        {
+          "name": "Analyze with asset list (replaces stored lots)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/portfolio/analyze",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"assets\": [\n    {\"ticker\": \"AAPL\", \"quantity\": 2.0, \"purchase_price\": 180.0},\n    {\"ticker\": \"AAPL\", \"quantity\": 1.0, \"purchase_price\": 210.0},\n    {\"ticker\": \"VOO\", \"quantity\": 20}\n  ],\n  \"use_ai\": true\n}"
+            },
+            "description": "WARNING: `assets` is the full desired state — stored lots are replaced. Repeat a ticker to express multiple lots."
+          }
+        },
+        {
+          "name": "Get portfolio (latest insight per ticker)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/portfolio"
+          }
+        },
+        {
+          "name": "Update portfolio and re-analyze",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/portfolio",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assets\": [\n    {\"ticker\": \"AAPL\", \"quantity\": 15},\n    {\"ticker\": \"GOOGL\", \"quantity\": 8}\n  ],\n  \"use_ai\": true\n}"
+            },
+            "description": "Replaces stored lots and re-analyzes. Optional user_profile and language."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Insights",
+      "item": [
+        {
+          "name": "Insight history",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/insights?ticker={{ticker}}&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["insights"],
+              "query": [
+                { "key": "ticker", "value": "{{ticker}}" },
+                { "key": "limit", "value": "50" },
+                { "key": "from", "value": "2026-06-01T00:00:00", "disabled": true },
+                { "key": "to", "value": "2026-12-31T23:59:59", "disabled": true }
+              ]
+            },
+            "description": "Newest first. All filters optional: ticker, from, to (ISO datetimes), limit (1-500, default 50)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assets (no auth required)",
+      "item": [
+        {
+          "name": "Analyze single asset",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/assets/analyze",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"{{ticker}}\",\n  \"user_profile\": {\n    \"risk\": \"moderate\",\n    \"horizon\": \"long\",\n    \"goal\": \"growth\"\n  },\n  \"use_ai\": true\n}"
+            },
+            "description": "Ad hoc analysis of any ticker, not tied to your portfolio. Optional: \"language\": \"{{language}}\", \"use_ai\": false."
+          }
+        }
+      ]
+    }
+  ]
+}

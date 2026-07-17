@@ -267,6 +267,13 @@ All analysis endpoints accept an optional `language` parameter (ISO code, e.g. `
 
 `POST /portfolio/analyze` persists the portfolio (positions are synced to the `assets` list). The `assets` field is optional — omit it to analyze the currently stored positions. Use `GET /portfolio` to retrieve the portfolio with the latest insight per held ticker, or `PUT /portfolio` to update assets and trigger re-analysis. Insights are never deleted; older runs are available via `GET /insights`.
 
+## Postman Collection
+
+Import `insight_engine.postman_collection.json` (repo root) into Postman. It covers
+every endpoint with `{{base_url}}`, `{{email}}`, `{{password}}`, `{{ticker}}`, and
+`{{position_id}}` variables — running **Login** stores the bearer token in
+`{{token}}` automatically for all protected requests.
+
 ## Database Migrations
 
 ```bash
@@ -275,6 +282,10 @@ alembic revision --autogenerate -m "description"
 
 # Apply migrations
 alembic upgrade head
+
+# Reset the database (DROPS ALL DATA, recreates, migrates; works with
+# local psql or the Docker container via PG_CONTAINER)
+./scripts/reset_db.sh
 ```
 
 ## Environment Variables
