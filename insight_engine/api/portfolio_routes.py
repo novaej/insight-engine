@@ -1,11 +1,12 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from insight_engine.ai.handlers import generate_batch_explanations
 from insight_engine.api.asset_routes import _build_insight_response, _to_record
+from insight_engine.api.deps import get_current_user, get_user_portfolio
 from insight_engine.api.schemas import (
     AlternativeResponse,
     AlternativesResponse,
@@ -17,6 +18,7 @@ from insight_engine.api.schemas import (
     PortfolioResponse,
     PortfolioSummaryResponse,
     PortfolioUpdateRequest,
+    PositionResponse,
     UserProfileRequest,
 )
 from insight_engine.database import get_session
@@ -30,7 +32,7 @@ from insight_engine.domain.enums import (
     Trend,
     Valuation,
 )
-from insight_engine.domain.models import InsightRecord, Portfolio
+from insight_engine.domain.models import InsightRecord, Position, User
 from insight_engine.providers import get_market_data_provider
 from insight_engine.services.alternatives import prepare_alternatives_context, resolve_alternatives
 from insight_engine.services.analysis import analyze_asset
@@ -47,7 +49,10 @@ async def _run_analysis(
     session: AsyncSession,
     portfolio_id: int,
 ) -> tuple[list[Insight], RiskLevel, str]:
-    """Run analysis on all assets, persist insights, and return results."""
+    """Run analysis on all assets, persist insights, and return results.
+
+    Insights are appended, never deleted — older rows form the history.
+    """
     market_data_provider = get_market_data_provider()
 
     # Fetch the S&P 500 history once; it's identical for every asset.
@@ -116,12 +121,7 @@ async def _run_analysis(
 
     insights: list[Insight] = [insight for insight, _ in analyzed]
 
-    # Delete old insights for this portfolio
-    await session.execute(
-        delete(InsightRecord).where(InsightRecord.portfolio_id == portfolio_id)
-    )
-
-    # Save new insights
+    # Append new insights; history is kept
     for insight in insights:
         record = _to_record(insight)
         record.portfolio_id = portfolio_id
@@ -135,35 +135,128 @@ async def _run_analysis(
     return insights, overall_risk, summary
 
 
+MAX_TICKERS = 20
+
+
+def _aggregate_lots(assets: list[PortfolioAsset]) -> list[PortfolioAsset]:
+    """Collapse purchase lots into one entry per ticker for analysis.
+
+    Quantity is summed; purchase price becomes the weighted average over the
+    lots that have one.
+    """
+    by_ticker: dict[str, list[PortfolioAsset]] = {}
+    for asset in assets:
+        by_ticker.setdefault(asset.ticker.upper(), []).append(asset)
+
+    aggregated = []
+    for ticker, lots in sorted(by_ticker.items()):
+        priced = [lot for lot in lots if lot.purchase_price is not None]
+        avg_price = None
+        if priced:
+            priced_qty = sum(lot.quantity for lot in priced)
+            avg_price = (
+                sum(lot.quantity * lot.purchase_price for lot in priced) / priced_qty
+            )
+        aggregated.append(
+            PortfolioAsset(
+                ticker=ticker,
+                quantity=sum(lot.quantity for lot in lots),
+                purchase_price=avg_price,
+            )
+        )
+    return aggregated
+
+
+def _check_ticker_limit(assets: list[PortfolioAsset]) -> None:
+    tickers = {a.ticker.upper() for a in assets}
+    if len(tickers) > MAX_TICKERS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Portfolio is limited to {MAX_TICKERS} distinct tickers",
+        )
+
+
+async def _sync_positions(
+    portfolio_id: int, assets: list[PortfolioAsset], session: AsyncSession
+) -> None:
+    """Replace stored lots with the requested list (full desired state).
+
+    Each entry is one lot; repeating a ticker creates multiple lots. Lots of
+    tickers absent from the request are removed.
+    """
+    result = await session.execute(
+        select(Position).where(Position.portfolio_id == portfolio_id)
+    )
+    for position in result.scalars().all():
+        await session.delete(position)
+
+    for asset in assets:
+        session.add(
+            Position(
+                portfolio_id=portfolio_id,
+                ticker=asset.ticker.upper(),
+                quantity=asset.quantity,
+                purchase_price=asset.purchase_price,
+                purchase_date=asset.purchase_date,
+            )
+        )
+
+
+async def _load_position_assets(
+    portfolio_id: int, session: AsyncSession
+) -> list[PortfolioAsset]:
+    """Load stored lots aggregated per ticker, ready for analysis."""
+    result = await session.execute(
+        select(Position)
+        .where(Position.portfolio_id == portfolio_id)
+        .order_by(Position.ticker)
+    )
+    lots = [
+        PortfolioAsset(
+            ticker=p.ticker,
+            quantity=p.quantity,
+            purchase_price=p.purchase_price,
+            purchase_date=p.purchase_date,
+        )
+        for p in result.scalars().all()
+    ]
+    return _aggregate_lots(lots)
+
+
 @router.post("/analyze", response_model=PortfolioSummaryResponse)
 async def analyze_portfolio_endpoint(
     request: PortfolioRequest,
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Analyze all assets in a portfolio and return a summary."""
+    """Analyze the portfolio and return a summary.
+
+    When `assets` is provided, the stored positions are synced to it first;
+    when omitted, the stored positions are analyzed.
+    """
     user_profile = UserProfile(
         risk=request.user_profile.risk,
         horizon=request.user_profile.horizon,
         objective=request.user_profile.goal,
     )
 
-    # Upsert the single portfolio row
-    result = await session.execute(select(Portfolio).limit(1))
-    portfolio = result.scalar_one_or_none()
+    portfolio = await get_user_portfolio(user, session, create=True)
+    portfolio.user_profile = request.user_profile.model_dump()
 
-    if portfolio is None:
-        portfolio = Portfolio(
-            user_profile=request.user_profile.model_dump(),
-            assets=[a.model_dump() for a in request.assets],
-        )
-        session.add(portfolio)
-        await session.flush()  # get the id
+    if request.assets is not None:
+        _check_ticker_limit(request.assets)
+        await _sync_positions(portfolio.id, request.assets, session)
+        assets = _aggregate_lots(request.assets)
     else:
-        portfolio.user_profile = request.user_profile.model_dump()
-        portfolio.assets = [a.model_dump() for a in request.assets]
+        assets = await _load_position_assets(portfolio.id, session)
+        if not assets:
+            raise HTTPException(
+                status_code=400,
+                detail="No stored positions to analyze; provide `assets` or add positions first",
+            )
 
     insights, overall_risk, summary = await _run_analysis(
-        assets=request.assets,
+        assets=assets,
         user_profile=user_profile,
         use_ai=request.use_ai,
         language=request.language,
@@ -185,29 +278,55 @@ async def analyze_portfolio_endpoint(
 
 @router.get("", response_model=PortfolioResponse)
 async def get_portfolio_endpoint(
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Retrieve the current portfolio with its latest insights."""
-    result = await session.execute(select(Portfolio).limit(1))
-    portfolio = result.scalar_one_or_none()
-
+    """Retrieve the user's portfolio with the latest insight per held ticker."""
+    portfolio = await get_user_portfolio(user, session)
     if portfolio is None:
         raise HTTPException(status_code=404, detail="No portfolio found")
 
-    records_result = await session.execute(
-        select(InsightRecord).where(InsightRecord.portfolio_id == portfolio.id)
+    positions_result = await session.execute(
+        select(Position)
+        .where(Position.portfolio_id == portfolio.id)
+        .order_by(Position.ticker)
     )
-    records = records_result.scalars().all()
+    positions = positions_result.scalars().all()
+    tickers = [p.ticker for p in positions]
 
-    insight_responses = [_record_to_response(r) for r in records]
+    records = []
+    if tickers:
+        latest = (
+            select(func.max(InsightRecord.id).label("max_id"))
+            .where(
+                InsightRecord.portfolio_id == portfolio.id,
+                InsightRecord.ticker.in_(tickers),
+            )
+            .group_by(InsightRecord.ticker)
+            .subquery()
+        )
+        records_result = await session.execute(
+            select(InsightRecord).where(InsightRecord.id.in_(select(latest.c.max_id)))
+        )
+        records = records_result.scalars().all()
 
     return PortfolioResponse(
         id=portfolio.id,
         user_profile=UserProfileRequest(**portfolio.user_profile),
-        assets=[PortfolioAsset(**a) for a in portfolio.assets],
+        assets=[
+            PositionResponse(
+                id=p.id,
+                ticker=p.ticker,
+                quantity=p.quantity,
+                purchase_price=p.purchase_price,
+                purchase_date=p.purchase_date,
+                updated_at=p.updated_at,
+            )
+            for p in positions
+        ],
         overall_risk=RiskLevel(portfolio.overall_risk) if portfolio.overall_risk else RiskLevel.low,
         summary=portfolio.summary or "",
-        insights=insight_responses,
+        insights=[_record_to_response(r) for r in records],
         updated_at=portfolio.updated_at,
     )
 
@@ -215,19 +334,17 @@ async def get_portfolio_endpoint(
 @router.put("", response_model=PortfolioSummaryResponse)
 async def update_portfolio_endpoint(
     request: PortfolioUpdateRequest,
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Update the portfolio assets (and optionally user profile) and re-analyze."""
-    result = await session.execute(select(Portfolio).limit(1))
-    portfolio = result.scalar_one_or_none()
-
+    portfolio = await get_user_portfolio(user, session)
     if portfolio is None:
         raise HTTPException(status_code=404, detail="No portfolio found")
 
-    # Update assets
-    portfolio.assets = [a.model_dump() for a in request.assets]
+    _check_ticker_limit(request.assets)
+    await _sync_positions(portfolio.id, request.assets, session)
 
-    # Update user profile if provided
     if request.user_profile is not None:
         portfolio.user_profile = request.user_profile.model_dump()
 
@@ -239,7 +356,7 @@ async def update_portfolio_endpoint(
     )
 
     insights, overall_risk, summary = await _run_analysis(
-        assets=request.assets,
+        assets=_aggregate_lots(request.assets),
         user_profile=user_profile,
         use_ai=request.use_ai,
         language=request.language,
@@ -309,6 +426,7 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
         health_score=record.health_score,
         profile_fit_score=record.profile_fit_score,
         alternatives=alternatives_resp,
+        analyzed_at=record.created_at,
     )
 
 

@@ -87,6 +87,77 @@ ruff check .
 ruff format .
 ```
 
+## Users & Authentication
+
+All portfolio, position, and insight endpoints **require** an
+`Authorization: Bearer <token>` header. Register once, then log in to obtain a
+token (each login rotates the previous token).
+
+```bash
+# Register
+curl -X POST http://localhost:8000/users \
+  -H "Content-Type: application/json" \
+  -d '{"email": "me@example.com", "password": "supersecret", "name": "Me"}'
+
+# Login — returns the bearer token; store it for the requests below
+TOKEN=$(curl -s -X POST http://localhost:8000/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "me@example.com", "password": "supersecret"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+
+# Who am I
+curl http://localhost:8000/users/me -H "Authorization: Bearer $TOKEN"
+
+# Update account (changing the password requires current_password and re-login)
+curl -X PATCH http://localhost:8000/users/me \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "New Name"}'
+
+# Delete account (removes portfolio, positions, and insights)
+curl -X DELETE http://localhost:8000/users/me -H "Authorization: Bearer $TOKEN"
+```
+
+## Managing Positions (purchase lots)
+
+Each position row is a **purchase lot** — buying the same ticker twice at different
+prices creates two lots, and analysis aggregates them per ticker (summed quantity,
+weighted-average cost). Lots are edited by their `id` and edits never trigger
+analysis (analysis is on-demand via `POST /portfolio/analyze`).
+
+```bash
+# List lots (each has an id)
+curl http://localhost:8000/portfolio/positions -H "Authorization: Bearer $TOKEN"
+
+# Add lots — same ticker at different prices is fine
+curl -X POST http://localhost:8000/portfolio/positions \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL", "quantity": 2.0, "purchase_price": 180.0, "purchase_date": "2025-11-02"}'
+curl -X POST http://localhost:8000/portfolio/positions \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"ticker": "AAPL", "quantity": 1.0, "purchase_price": 210.0, "purchase_date": "2026-03-15"}'
+
+# Update a lot by id
+curl -X PATCH http://localhost:8000/portfolio/positions/1 \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"quantity": 3.0}'
+
+# Delete a lot by id (the ticker's insight history is kept)
+curl -X DELETE http://localhost:8000/portfolio/positions/1 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+## Insight History
+
+Every analysis run is kept, so you can track how an asset's state evolves.
+
+```bash
+# Latest 50 insights for the portfolio (newest first)
+curl http://localhost:8000/insights -H "Authorization: Bearer $TOKEN"
+
+# Filtered by ticker and date range
+curl "http://localhost:8000/insights?ticker=AAPL&from=2026-06-01T00:00:00&limit=10" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ## Example Requests
 
 ### Analyze a single asset
@@ -117,9 +188,25 @@ curl -X POST http://localhost:8000/assets/analyze \
 
 ### Analyze a portfolio
 
+`assets` is optional — omit it to analyze the stored positions (recommended once
+you manage lots via `/portfolio/positions`). When provided, it **replaces** all
+stored lots; repeat a ticker to express multiple lots.
+
 ```bash
+# Analyze the stored positions
 curl -X POST http://localhost:8000/portfolio/analyze \
-  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "user_profile": {
+      "risk": "moderate",
+      "horizon": "long",
+      "goal": "growth"
+    }
+  }'
+
+# Or provide the full asset list (replaces stored lots)
+curl -X POST http://localhost:8000/portfolio/analyze \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
     "user_profile": {
       "risk": "moderate",
@@ -127,8 +214,8 @@ curl -X POST http://localhost:8000/portfolio/analyze \
       "goal": "growth"
     },
     "assets": [
-      {"ticker": "AAPL", "quantity": 10},
-      {"ticker": "MSFT", "quantity": 5},
+      {"ticker": "AAPL", "quantity": 10, "purchase_price": 180.0},
+      {"ticker": "AAPL", "quantity": 5, "purchase_price": 210.0},
       {"ticker": "VOO", "quantity": 20}
     ]
   }'
@@ -153,14 +240,14 @@ curl -X POST http://localhost:8000/assets/analyze \
 ### Retrieve saved portfolio
 
 ```bash
-curl http://localhost:8000/portfolio
+curl http://localhost:8000/portfolio -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Update portfolio and re-analyze
 
 ```bash
 curl -X PUT http://localhost:8000/portfolio \
-  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
     "assets": [
       {"ticker": "AAPL", "quantity": 15},
@@ -172,11 +259,13 @@ curl -X PUT http://localhost:8000/portfolio \
 
 ### Notes
 
+`/assets/analyze` is the only analysis endpoint that works without authentication (it analyzes a ticker ad hoc, not your portfolio).
+
 Both `/assets/analyze` and `/portfolio/analyze` accept an optional `use_ai` parameter (defaults to `true`). Set to `false` to skip AI-generated explanations and avoid OpenAI API calls.
 
 All analysis endpoints accept an optional `language` parameter (ISO code, e.g. `es`, `fr`, `pt`) to translate AI-generated text. Requires Azure Translator credentials.
 
-`POST /portfolio/analyze` persists the portfolio (upsert). Use `GET /portfolio` to retrieve it later, or `PUT /portfolio` to update assets and trigger re-analysis.
+`POST /portfolio/analyze` persists the portfolio (positions are synced to the `assets` list). The `assets` field is optional — omit it to analyze the currently stored positions. Use `GET /portfolio` to retrieve the portfolio with the latest insight per held ticker, or `PUT /portfolio` to update assets and trigger re-analysis. Insights are never deleted; older runs are available via `GET /insights`.
 
 ## Database Migrations
 

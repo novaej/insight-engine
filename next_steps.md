@@ -7,7 +7,12 @@ every new feature stays educational, never prescriptive.
 
 ---
 
-## P1 — Rework persistence: users, real relations, insight history
+## P1 — Rework persistence: users, real relations, insight history ✅ DONE (2026-07-16)
+
+Implemented as planned, plus email/password registration with bearer tokens issued
+on login (`POST /users`, `POST /login`; no header → default dev user). Remaining
+from the original scope: nothing — retention policy deferred until table growth
+matters.
 
 **Why first:** everything else (positions, alerts, history views) needs a solid data
 model underneath. The current model is two tables: `portfolios` stores assets as an

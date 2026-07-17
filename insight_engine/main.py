@@ -3,7 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from insight_engine.api.asset_routes import router as asset_router
+from insight_engine.api.insight_routes import router as insight_router
 from insight_engine.api.portfolio_routes import router as portfolio_router
+from insight_engine.api.position_routes import router as position_router
+from insight_engine.api.user_routes import router as user_router
 
 
 @asynccontextmanager
@@ -18,8 +21,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(user_router)
 app.include_router(asset_router)
 app.include_router(portfolio_router)
+app.include_router(position_router)
+app.include_router(insight_router)
 
 
 @app.get("/health")

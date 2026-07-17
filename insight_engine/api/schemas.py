@@ -14,11 +14,44 @@ from insight_engine.domain.enums import (
     Valuation,
 )
 
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
 
 class UserProfileRequest(BaseModel):
     risk: RiskProfile = RiskProfile.moderate
     horizon: str = "long"
     goal: InvestmentObjective = InvestmentObjective.growth
+
+
+class UserCreateRequest(BaseModel):
+    email: str = Field(..., max_length=255, pattern=EMAIL_PATTERN)
+    password: str = Field(..., min_length=8, max_length=128)
+    name: str | None = Field(None, max_length=100)
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    name: str | None = None
+
+
+class UserUpdateRequest(BaseModel):
+    email: str | None = Field(None, max_length=255, pattern=EMAIL_PATTERN)
+    name: str | None = Field(None, max_length=100)
+    password: str | None = Field(None, min_length=8, max_length=128)
+    current_password: str | None = Field(
+        None, description="Required when changing the password"
+    )
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., max_length=255)
+    password: str
+
+
+class LoginResponse(BaseModel):
+    token: str
+    token_type: str = "bearer"
 
 
 class AnalyzeAssetRequest(BaseModel):
@@ -74,23 +107,49 @@ class InsightResponse(BaseModel):
     health_score: int | None = None
     profile_fit_score: int | None = None
     alternatives: AlternativesResponse | None = None
+    analyzed_at: datetime.datetime | None = None
 
 
 class PortfolioAsset(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=10)
     quantity: float = Field(..., gt=0)
+    purchase_price: float | None = Field(None, gt=0)
+    purchase_date: datetime.date | None = None
+
+
+class PositionResponse(BaseModel):
+    id: int | None = None
+    ticker: str
+    quantity: float
+    purchase_price: float | None = None
+    purchase_date: datetime.date | None = None
+    updated_at: datetime.datetime | None = None
+
+
+class PositionUpdateRequest(BaseModel):
+    quantity: float | None = Field(None, gt=0)
+    purchase_price: float | None = Field(None, gt=0)
+    purchase_date: datetime.date | None = None
 
 
 class PortfolioRequest(BaseModel):
     user_profile: UserProfileRequest
-    assets: list[PortfolioAsset] = Field(..., min_length=1, max_length=20)
+    assets: list[PortfolioAsset] | None = Field(
+        None,
+        min_length=1,
+        max_length=100,
+        description=(
+            "Omit to analyze the stored positions. Entries with the same ticker "
+            "are separate lots; max 20 distinct tickers."
+        ),
+    )
     use_ai: bool = True
     language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
 
 class PortfolioUpdateRequest(BaseModel):
     user_profile: UserProfileRequest | None = None
-    assets: list[PortfolioAsset] = Field(..., min_length=1, max_length=20)
+    assets: list[PortfolioAsset] = Field(..., min_length=1, max_length=100)
     use_ai: bool = True
     language: str | None = Field(None, min_length=2, max_length=10, description="Target language code (e.g. 'es', 'fr', 'pt')")
 
@@ -105,8 +164,13 @@ class PortfolioSummaryResponse(BaseModel):
 class PortfolioResponse(BaseModel):
     id: int
     user_profile: UserProfileRequest
-    assets: list[PortfolioAsset]
+    assets: list[PositionResponse]
     overall_risk: RiskLevel
     summary: str
     insights: list[InsightResponse]
     updated_at: datetime.datetime
+
+
+class InsightHistoryResponse(BaseModel):
+    total: int
+    insights: list[InsightResponse]
