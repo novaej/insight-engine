@@ -46,6 +46,8 @@ class Portfolio(Base):
     user_profile: Mapped[dict] = mapped_column(JSON, nullable=False)
     overall_risk: Mapped[str | None] = mapped_column(String(20), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    total_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    concentration: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -95,6 +97,7 @@ class InsightRecord(Base):
     health_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     profile_fit_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     alternatives: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    position_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -95,7 +95,7 @@ Provide your response in the following JSON format:
 
 BATCH_ASSET_BLOCK_TEMPLATE = """\
 Ticker: {ticker}
-Asset State: {asset_state}
+{position_context}Asset State: {asset_state}
 Trend: {trend}
 Valuation: {valuation}
 Fundamentals: {fundamentals}
@@ -126,7 +126,7 @@ BATCH_INSIGHT_PROMPT_TEMPLATE = """\
 Analyze the following asset states and provide an educational explanation for each one.
 
 {user_context}
-
+{portfolio_context}
 {asset_blocks}
 
 For each asset that includes an "Alternatives Context" section, additionally suggest \

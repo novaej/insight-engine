@@ -40,7 +40,13 @@ re-analysis**, so there is no history at all.
 **DB migration note:** write an Alembic migration that backfills the existing JSON
 assets into the new `positions` table so current data survives.
 
-## P2 — Position-aware analysis (cost basis, weights, concentration)
+## P2 — Position-aware analysis (cost basis, weights, concentration) ✅ DONE (2026-07-17)
+
+Implemented as planned: weights + market values per position, unrealized
+gain/loss vs weighted-average cost, 25%/40% concentration rule
+(`rules/concentration_rules.py`), value-weighted overall risk, position &
+portfolio context in the AI prompt, and persistence
+(insights.position_context, portfolios.total_value/concentration).
 
 **Why second:** cheap once P1 exists, and it makes every insight dramatically more
 personal — the engine currently analyzes each ticker in isolation with no idea of

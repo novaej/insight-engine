@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from insight_engine.domain.enums import (
     AssetState,
+    ConcentrationState,
     Fundamentals,
     Horizon,
     InvestmentObjective,
@@ -75,6 +76,22 @@ class AlternativesResult:
 
 
 @dataclass
+class PositionContext:
+    quantity: float
+    market_value: float | None = None        # quantity × current_price
+    weight: float | None = None              # 0–1 share of total portfolio value
+    avg_purchase_price: float | None = None  # weighted average over lots
+    unrealized_gain_pct: float | None = None  # (current − avg_cost) / avg_cost
+
+
+@dataclass
+class ConcentrationResult:
+    state: ConcentrationState
+    flagged_tickers: list[str] = field(default_factory=list)
+    flagged_roles: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Insight:
     ticker: str
     asset_state: AssetState
@@ -88,3 +105,4 @@ class Insight:
     scores: AssetScores | None = None
     news_flags: NewsFlags | None = None
     alternatives: AlternativesResult | None = None
+    position: PositionContext | None = None

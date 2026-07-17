@@ -87,11 +87,16 @@ Body:
 - `use_ai` (default true): false skips OpenAI (mechanical text instead)
 - `language` (optional ISO code, e.g. `es`): translates AI text via Azure
 
-Returns per-asset insights plus portfolio-level `overall_risk` and `summary`.
+Returns per-asset insights plus portfolio-level `overall_risk`, `summary`,
+`total_value`, and `concentration` (state + flagged tickers/roles). Each insight
+includes a `position` object when analyzed as part of a portfolio: quantity,
+market value, weight (0–1 share of portfolio value), average purchase price, and
+unrealized gain/loss vs cost. Overall risk is weighted by position value.
 
 ### GET /portfolio
-Returns the stored portfolio: profile, all lots, overall risk, summary, and the
-**latest insight per currently held ticker**. No external calls — instant.
+Returns the stored portfolio: profile, all lots, overall risk, summary, total
+value, concentration, and the **latest insight per currently held ticker**
+(including its position context). No external calls — instant.
 
 ### PUT /portfolio
 Same as analyze-with-assets (replaces lots, re-analyzes) but keeps the stored

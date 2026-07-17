@@ -135,6 +135,23 @@ and compare the latest close against it.
 (below), which the synthesis rules combine with asset-level signals — e.g. high
 risk + adverse context forces the `unattractive` state.
 
+## 7b. Position Analytics (require purchase lots)
+
+Computed per ticker from the user's stored lots, not from market data alone:
+
+- **Market value:** aggregated quantity × current price.
+- **Portfolio weight:** market value ÷ total portfolio value (positions without
+  a price are excluded from the total and get no weight).
+- **Average purchase price:** quantity-weighted mean across the ticker's lots —
+  2 shares @ $180 and 1 share @ $210 average to $190.
+- **Unrealized gain/loss:** (current − average cost) ÷ average cost, e.g.
+  +0.25 = 25% above cost. Context only, never a signal to act.
+- **Concentration:** a ticker above 25% of portfolio value, or a portfolio role
+  above 40% combined, flags the portfolio as `concentrated`.
+- **Weighted overall risk:** portfolio risk level weighted by position value —
+  risky holdings dominate only in proportion to how much of the portfolio they
+  actually represent.
+
 ## 8. Derived Scores (built from the metrics above)
 
 These are rule-layer composites, not raw metrics; full point tables live in

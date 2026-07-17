@@ -69,12 +69,15 @@ def generate_batch_explanations(
     items: list[tuple[Insight, dict | None]],
     user_profile: UserProfile | None = None,
     provider: LLMProvider | None = None,
+    total_value: float | None = None,
+    concentration=None,
 ) -> None:
     """Generate explanations for many insights with a single LLM call.
 
     items pairs each insight with its alternatives_context (or None).
     Mutates the insights in place; assets missing from the response get
-    mechanical fallback text.
+    mechanical fallback text. total_value/concentration, when provided, give
+    the model portfolio-level exposure context.
     """
     if not items:
         return
@@ -107,12 +110,14 @@ def generate_batch_explanations(
         blocks.append(
             BATCH_ASSET_BLOCK_TEMPLATE.format(
                 **_asset_prompt_kwargs(insight),
+                position_context=_position_context_line(insight),
                 alternatives_section=alternatives_section,
             )
         )
 
     prompt = BATCH_INSIGHT_PROMPT_TEMPLATE.format(
         user_context=build_user_context(user_profile),
+        portfolio_context=_portfolio_context_line(total_value, concentration),
         asset_blocks="\n\n".join(blocks),
     )
 
@@ -162,6 +167,39 @@ def _asset_prompt_kwargs(insight: Insight) -> dict:
         volatility=_pct(metrics.annualized_volatility),
         max_drawdown=_pct(metrics.max_drawdown),
     )
+
+
+def _position_context_line(insight: Insight) -> str:
+    position = getattr(insight, "position", None)
+    if position is None:
+        return ""
+    parts = []
+    if position.weight is not None:
+        parts.append(f"{position.weight * 100:.1f}% of portfolio value")
+    if position.unrealized_gain_pct is not None:
+        direction = "gain" if position.unrealized_gain_pct >= 0 else "loss"
+        parts.append(
+            f"unrealized {direction} vs average cost: "
+            f"{position.unrealized_gain_pct * 100:+.1f}%"
+        )
+    if not parts:
+        return ""
+    return f"Position Context: {'; '.join(parts)}\n"
+
+
+def _portfolio_context_line(total_value: float | None, concentration) -> str:
+    parts = []
+    if total_value is not None:
+        parts.append(f"total value {total_value:,.2f}")
+    if concentration is not None:
+        detail = concentration.state.value
+        flags = concentration.flagged_tickers + concentration.flagged_roles
+        if flags:
+            detail += f" ({', '.join(flags)} above concentration thresholds)"
+        parts.append(detail)
+    if not parts:
+        return ""
+    return f"Portfolio Context: {'; '.join(parts)}"
 
 
 def _news_flags_context(alternatives_context: dict) -> str:

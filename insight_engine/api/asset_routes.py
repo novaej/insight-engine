@@ -9,6 +9,7 @@ from insight_engine.api.schemas import (
     DimensionsResponse,
     InsightResponse,
     MetricsResponse,
+    PositionContextResponse,
 )
 from insight_engine.database import get_session
 from insight_engine.domain.entities import Insight, UserProfile
@@ -36,6 +37,16 @@ def _to_record(insight: Insight) -> InsightRecord:
                 }
                 for s in insight.alternatives.suggestions
             ],
+        }
+
+    position_json = None
+    if insight.position is not None:
+        position_json = {
+            "quantity": insight.position.quantity,
+            "market_value": insight.position.market_value,
+            "weight": insight.position.weight,
+            "avg_purchase_price": insight.position.avg_purchase_price,
+            "unrealized_gain_pct": insight.position.unrealized_gain_pct,
         }
 
     return InsightRecord(
@@ -68,6 +79,7 @@ def _to_record(insight: Insight) -> InsightRecord:
         health_score=insight.scores.health_score if insight.scores else None,
         profile_fit_score=insight.scores.profile_fit_score if insight.scores else None,
         alternatives=alternatives_json,
+        position_context=position_json,
     )
 
 
@@ -165,4 +177,13 @@ def _build_insight_response(insight: Insight) -> InsightResponse:
         health_score=insight.scores.health_score if insight.scores else None,
         profile_fit_score=insight.scores.profile_fit_score if insight.scores else None,
         alternatives=alternatives_resp,
+        position=PositionContextResponse(
+            quantity=insight.position.quantity,
+            market_value=insight.position.market_value,
+            weight=insight.position.weight,
+            avg_purchase_price=insight.position.avg_purchase_price,
+            unrealized_gain_pct=insight.position.unrealized_gain_pct,
+        )
+        if insight.position
+        else None,
     )

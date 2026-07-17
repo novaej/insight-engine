@@ -152,6 +152,16 @@ def test_analyze_portfolio_endpoint(mock_analyze, mock_explain, mock_provider, m
     assert len(data["insights"]) == 2
     assert data["overall_risk"] in ["low", "medium", "high"]
 
+    # Position-aware fields: both mock insights price at 150, so
+    # AAPL = 10*150 = 1500, MSFT = 5*150 = 750
+    assert data["total_value"] == 2250.0
+    aapl = next(i for i in data["insights"] if i["ticker"] == "AAPL")
+    assert abs(aapl["position"]["weight"] - 2 / 3) < 1e-9
+    assert aapl["position"]["market_value"] == 1500.0
+    # Both positions exceed the 25% single-position limit
+    assert data["concentration"]["state"] == "concentrated"
+    assert set(data["concentration"]["flagged_tickers"]) == {"AAPL", "MSFT"}
+
 
 def test_analyze_asset_invalid_ticker():
     response = client.post("/assets/analyze", json={"ticker": ""})

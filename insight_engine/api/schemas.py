@@ -94,6 +94,20 @@ class AlternativesResponse(BaseModel):
     suggestions: list[AlternativeResponse] = []
 
 
+class PositionContextResponse(BaseModel):
+    quantity: float
+    market_value: float | None = None
+    weight: float | None = None
+    avg_purchase_price: float | None = None
+    unrealized_gain_pct: float | None = None
+
+
+class ConcentrationResponse(BaseModel):
+    state: str
+    flagged_tickers: list[str] = []
+    flagged_roles: list[str] = []
+
+
 class InsightResponse(BaseModel):
     ticker: str
     asset_state: AssetState
@@ -108,6 +122,7 @@ class InsightResponse(BaseModel):
     profile_fit_score: int | None = None
     alternatives: AlternativesResponse | None = None
     analyzed_at: datetime.datetime | None = None
+    position: PositionContextResponse | None = None
 
 
 class PortfolioAsset(BaseModel):
@@ -159,6 +174,8 @@ class PortfolioSummaryResponse(BaseModel):
     insights: list[InsightResponse]
     overall_risk: RiskLevel
     summary: str
+    total_value: float | None = None
+    concentration: ConcentrationResponse | None = None
 
 
 class PortfolioResponse(BaseModel):
@@ -169,6 +186,8 @@ class PortfolioResponse(BaseModel):
     summary: str
     insights: list[InsightResponse]
     updated_at: datetime.datetime
+    total_value: float | None = None
+    concentration: ConcentrationResponse | None = None
 
 
 class InsightHistoryResponse(BaseModel):

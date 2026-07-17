@@ -10,6 +10,7 @@ from insight_engine.api.deps import get_current_user, get_user_portfolio
 from insight_engine.api.schemas import (
     AlternativeResponse,
     AlternativesResponse,
+    ConcentrationResponse,
     DimensionsResponse,
     InsightResponse,
     MetricsResponse,
@@ -18,11 +19,12 @@ from insight_engine.api.schemas import (
     PortfolioResponse,
     PortfolioSummaryResponse,
     PortfolioUpdateRequest,
+    PositionContextResponse,
     PositionResponse,
     UserProfileRequest,
 )
 from insight_engine.database import get_session
-from insight_engine.domain.entities import Insight, UserProfile
+from insight_engine.domain.entities import ConcentrationResult, Insight, UserProfile
 from insight_engine.domain.enums import (
     AssetState,
     Fundamentals,
@@ -34,6 +36,11 @@ from insight_engine.domain.enums import (
 )
 from insight_engine.domain.models import InsightRecord, Position, User
 from insight_engine.providers import get_market_data_provider
+from insight_engine.rules.concentration_rules import (
+    compute_position_contexts,
+    determine_weighted_risk,
+    evaluate_concentration,
+)
 from insight_engine.services.alternatives import prepare_alternatives_context, resolve_alternatives
 from insight_engine.services.analysis import analyze_asset
 from insight_engine.services.translator import translate_insight, translate_texts
@@ -48,10 +55,11 @@ async def _run_analysis(
     language: str | None,
     session: AsyncSession,
     portfolio_id: int,
-) -> tuple[list[Insight], RiskLevel, str]:
+) -> tuple[list[Insight], RiskLevel, str, float | None, ConcentrationResult]:
     """Run analysis on all assets, persist insights, and return results.
 
     Insights are appended, never deleted — older rows form the history.
+    Returns (insights, overall_risk, summary, total_value, concentration).
     """
     market_data_provider = get_market_data_provider()
 
@@ -85,10 +93,23 @@ async def _run_analysis(
 
     analyzed = await asyncio.gather(*(_analyze_one(asset) for asset in assets))
 
+    # Position-aware context: weights, unrealized gain/loss, concentration.
+    # Computed before the AI call so the prompt can reference exposure.
+    insights: list[Insight] = [insight for insight, _ in analyzed]
+    total_value = compute_position_contexts(assets, insights)
+    concentration = evaluate_concentration(insights)
+
     if use_ai:
         # One LLM call covers explanations (and alternative suggestions where
         # triggered) for the whole portfolio.
-        await asyncio.to_thread(generate_batch_explanations, analyzed, user_profile)
+        await asyncio.to_thread(
+            generate_batch_explanations,
+            analyzed,
+            user_profile,
+            None,
+            total_value,
+            concentration,
+        )
         if language:
             for insight, _ in analyzed:
                 await asyncio.to_thread(translate_insight, insight, language)
@@ -119,20 +140,18 @@ async def _run_analysis(
         )
     )
 
-    insights: list[Insight] = [insight for insight, _ in analyzed]
-
     # Append new insights; history is kept
     for insight in insights:
         record = _to_record(insight)
         record.portfolio_id = portfolio_id
         session.add(record)
 
-    overall_risk = _determine_overall_risk(insights)
-    summary = _build_summary(insights, overall_risk)
+    overall_risk = determine_weighted_risk(insights)
+    summary = _build_summary(insights, overall_risk, total_value, concentration)
     if language:
         summary = translate_texts([summary], language)[0]
 
-    return insights, overall_risk, summary
+    return insights, overall_risk, summary, total_value, concentration
 
 
 MAX_TICKERS = 20
@@ -255,7 +274,7 @@ async def analyze_portfolio_endpoint(
                 detail="No stored positions to analyze; provide `assets` or add positions first",
             )
 
-    insights, overall_risk, summary = await _run_analysis(
+    insights, overall_risk, summary, total_value, concentration = await _run_analysis(
         assets=assets,
         user_profile=user_profile,
         use_ai=request.use_ai,
@@ -266,6 +285,8 @@ async def analyze_portfolio_endpoint(
 
     portfolio.overall_risk = overall_risk.value
     portfolio.summary = summary
+    portfolio.total_value = total_value
+    portfolio.concentration = _concentration_to_json(concentration)
     await session.commit()
 
     return PortfolioSummaryResponse(
@@ -273,6 +294,8 @@ async def analyze_portfolio_endpoint(
         insights=[_build_insight_response(i) for i in insights],
         overall_risk=overall_risk,
         summary=summary,
+        total_value=total_value,
+        concentration=_concentration_to_response(concentration),
     )
 
 
@@ -328,6 +351,8 @@ async def get_portfolio_endpoint(
         summary=portfolio.summary or "",
         insights=[_record_to_response(r) for r in records],
         updated_at=portfolio.updated_at,
+        total_value=portfolio.total_value,
+        concentration=_concentration_to_response(portfolio.concentration),
     )
 
 
@@ -355,7 +380,7 @@ async def update_portfolio_endpoint(
         objective=user_profile_data.goal,
     )
 
-    insights, overall_risk, summary = await _run_analysis(
+    insights, overall_risk, summary, total_value, concentration = await _run_analysis(
         assets=_aggregate_lots(request.assets),
         user_profile=user_profile,
         use_ai=request.use_ai,
@@ -366,6 +391,8 @@ async def update_portfolio_endpoint(
 
     portfolio.overall_risk = overall_risk.value
     portfolio.summary = summary
+    portfolio.total_value = total_value
+    portfolio.concentration = _concentration_to_json(concentration)
     await session.commit()
 
     return PortfolioSummaryResponse(
@@ -373,6 +400,8 @@ async def update_portfolio_endpoint(
         insights=[_build_insight_response(i) for i in insights],
         overall_risk=overall_risk,
         summary=summary,
+        total_value=total_value,
+        concentration=_concentration_to_response(concentration),
     )
 
 
@@ -427,26 +456,45 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
         profile_fit_score=record.profile_fit_score,
         alternatives=alternatives_resp,
         analyzed_at=record.created_at,
+        position=PositionContextResponse(**record.position_context)
+        if record.position_context
+        else None,
     )
 
 
-def _determine_overall_risk(insights) -> RiskLevel:
-    """Determine portfolio-level risk from individual insights."""
-    high_risk_count = sum(
-        1
-        for i in insights
-        if i.asset_state in (AssetState.risky, AssetState.unattractive)
+def _concentration_to_json(concentration: ConcentrationResult | None) -> dict | None:
+    if concentration is None:
+        return None
+    return {
+        "state": concentration.state.value,
+        "flagged_tickers": concentration.flagged_tickers,
+        "flagged_roles": concentration.flagged_roles,
+    }
+
+
+def _concentration_to_response(concentration) -> ConcentrationResponse | None:
+    """Accepts a ConcentrationResult entity or the stored JSON dict."""
+    if concentration is None:
+        return None
+    if isinstance(concentration, dict):
+        return ConcentrationResponse(
+            state=concentration.get("state", ""),
+            flagged_tickers=concentration.get("flagged_tickers", []),
+            flagged_roles=concentration.get("flagged_roles", []),
+        )
+    return ConcentrationResponse(
+        state=concentration.state.value,
+        flagged_tickers=concentration.flagged_tickers,
+        flagged_roles=concentration.flagged_roles,
     )
 
-    if high_risk_count > len(insights) / 2:
-        return RiskLevel.high
-    elif high_risk_count > 0:
-        return RiskLevel.medium
-    else:
-        return RiskLevel.low
 
-
-def _build_summary(insights, overall_risk: RiskLevel) -> str:
+def _build_summary(
+    insights,
+    overall_risk: RiskLevel,
+    total_value: float | None = None,
+    concentration: ConcentrationResult | None = None,
+) -> str:
     """Build a brief portfolio summary string."""
     states = [i.asset_state for i in insights]
     healthy = sum(1 for s in states if s in (AssetState.healthy, AssetState.healthy_but_expensive))
@@ -463,4 +511,12 @@ def _build_summary(insights, overall_risk: RiskLevel) -> str:
 
     summary = "; ".join(parts) if parts else "Portfolio analysis complete"
     summary += f". Overall portfolio risk level: {overall_risk.value}."
+    if total_value is not None:
+        summary += f" Total portfolio value: {total_value:,.2f}."
+    if concentration is not None and concentration.flagged_tickers:
+        flagged = ", ".join(concentration.flagged_tickers)
+        summary += f" Concentrated exposure: {flagged} above 25% of portfolio value."
+    if concentration is not None and concentration.flagged_roles:
+        flagged = ", ".join(concentration.flagged_roles)
+        summary += f" Role concentration: {flagged} above 40% of portfolio value."
     return summary

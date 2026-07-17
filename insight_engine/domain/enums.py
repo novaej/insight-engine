@@ -63,6 +63,11 @@ class InvestmentObjective(str, Enum):
     capital_protection = "capital_protection"
 
 
+class ConcentrationState(str, Enum):
+    concentrated = "concentrated"
+    diversified = "diversified"
+
+
 class PortfolioRole(str, Enum):
     US_LARGE_CAP_CORE = "US_LARGE_CAP_CORE"
     GROWTH_TECH = "GROWTH_TECH"

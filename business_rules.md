@@ -235,6 +235,48 @@ Alternatives are triggered when **any** of these conditions are met:
 
 ---
 
+## 9b. Position-Aware Portfolio Rules
+
+Deterministic rules over the user's actual holdings (purchase lots aggregated
+per ticker). Like all rules, they classify states — they never produce buy/sell
+language. A paper loss yields *context*, not advice.
+
+### 9b.1 Position Weights
+
+- Market value per ticker = aggregated quantity × current price.
+- Weight = market value / total portfolio value.
+- Positions without a current price get no weight and are excluded from the total.
+
+### 9b.2 Unrealized Gain/Loss
+
+- `(current_price − avg_purchase_price) / avg_purchase_price`, where the average
+  purchase price is the quantity-weighted mean over the ticker's lots.
+- Undefined (null) when no lot has a purchase price.
+
+### 9b.3 Concentration
+
+| Check | Threshold | Effect |
+|-------|-----------|--------|
+| Single position weight | > 25% | ticker flagged |
+| Combined portfolio-role weight | > 40% | role flagged |
+
+Any flag → portfolio concentration state `concentrated`; otherwise `diversified`.
+
+### 9b.4 Value-Weighted Overall Risk
+
+Portfolio risk is weighted by position value instead of counting assets:
+
+- Combined weight of assets in `risky`/`unattractive` states > 50% → high
+- > 0% → medium
+- 0% → low
+- No weights available (e.g. all prices missing) → fall back to count-based logic.
+
+Position and portfolio context (weights, unrealized gain/loss, concentration
+state) are passed to the AI for explanation, subject to the same
+non-prescriptive constraints.
+
+---
+
 ## 10. Use of AI
 
 The AI:
