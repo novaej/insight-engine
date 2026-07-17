@@ -66,37 +66,33 @@ exposure.
 - Portfolio-level summary gains a real overview: total value, weight table,
   aggregate risk weighted by position size instead of a simple count.
 
-## P3 — Sector/role-aware market context benchmarks ✅ BENCHMARKS DONE (2026-07-17)
+## P3 — Sector/role-aware market context benchmarks ✅ DONE (2026-07-17)
 
-Implemented: `config/benchmarks.json` role→index map, market context judged
-against the role benchmark only (no S&P fallback — per user decision), full
-transparency (`benchmark_ticker` + `benchmark_above_sma200` in every insight's
-metrics), and a request-scoped thread-safe cache (`adapters/caching.py`)
-replacing the ^GSPC prefetch. **Still open from this section:** dynamic
-candidate discovery (below) — needs a data-source design pass.
+Implemented: `config/benchmarks.json` role→index map (GROWTH_TECH → QQQ,
+DIVIDEND_INCOME → VYM, DEFENSIVE → XLP, EMERGING_MARKETS → EEM,
+BONDS_STABILITY → AGG, US_LARGE_CAP_CORE → ^GSPC), market context judged against
+the role benchmark only (no S&P fallback — per user decision), full transparency
+(`benchmark_ticker` + `benchmark_above_sma200` in every insight's metrics; `null`
+when data unavailable so the default is visible), and a request-scoped
+thread-safe cache (`adapters/caching.py`) replacing the ^GSPC prefetch.
 
-**Why:** the S&P 500 vs SMA 200 check is a blunt instrument — an energy stock, a
-financials ETF, and a bond fund all get judged against the same "market weather."
+## P3b — Dynamic candidate discovery
 
-**What to build:**
+**Why:** alternative candidates still come from the fixed
+`config/candidate_universe.json` list (now correctly filtered — risk tolerance,
+profile fit ≥ 50, not held — but a small static pool). The fixed list is the
+remaining weak link in the alternatives feature.
 
-- Benchmark map keyed by portfolio role (already classified in `role_rules.py`),
-  with sector as fallback: GROWTH_TECH → QQQ, DIVIDEND_INCOME → VYM,
-  DEFENSIVE → XLP, EMERGING_MARKETS → EEM, BONDS_STABILITY → AGG,
-  US_LARGE_CAP_CORE → ^GSPC (unchanged). Config file, not hardcoded.
-- Market context dimension compares the asset's benchmark vs its own SMA 200,
-  reusing the existing comparison code — it's parameterizing the ticker.
-- Keep the S&P 500 check as a second, overall-regime signal (favorable/adverse
-  becomes two-part: broad market + asset's neighborhood).
-- Cache benchmark fetches per analysis run (same pattern as the ^GSPC fix).
-- **Dynamic candidate discovery** (replaces the static candidate universe as
-  primary fallback): screen candidates by portfolio role/sector from market
-  data (e.g. constituents of the role's benchmark ETF, or a sector screen)
-  instead of the fixed `config/candidate_universe.json` list. The config file
-  remains the offline last resort. Candidates still pass the same validation
-  chain: real metrics → risk-tolerance filters → profile fit ≥ 50 → not held →
-  rank by health. Added 2026-07-17 after fixing empty/contradictory
-  suggestions; the fixed list is the remaining weak link.
+**What to build (needs a data-source design pass):**
+
+- Screen candidates by portfolio role/sector from market data — e.g.
+  constituents of the role's benchmark ETF, or a sector screen — instead of the
+  static JSON list. The config file becomes the offline last resort.
+- Candidates still pass the same validation chain: real metrics →
+  risk-tolerance filters → profile fit ≥ 50 → not already held → rank by health.
+- Open question: yfinance doesn't cleanly expose ETF constituents / sector
+  screens, so the data source is the main thing to resolve (a maintained
+  constituent list, a screener API, or scraping an index provider).
 
 ## P4 — Active monitoring & email alerts ("the watchdog")
 
@@ -162,14 +158,15 @@ scores and alternative suggestions.
 
 ## Suggested sequencing
 
-| Step | Depends on | Rough size |
-|------|-----------|------------|
-| P1 persistence rework | — | large (schema + migration + endpoints) |
-| P2 position-aware analysis | P1 | medium |
-| P3 benchmark map | — (parallel-friendly) | small |
-| P4 watchdog + email | P1, better with P2 | large |
-| P4b goal-aware scoring | — (parallel-friendly) | medium |
-| P5 hardening | — | small, continuous |
+| Step | Depends on | Rough size | Status |
+|------|-----------|------------|--------|
+| P1 persistence rework | — | large | ✅ done |
+| P2 position-aware analysis | P1 | medium | ✅ done |
+| P3 benchmark map | — (parallel-friendly) | small | ✅ done |
+| P3b dynamic candidate discovery | — (needs data source) | medium | open |
+| P4 watchdog + email | P1, better with P2 | large | open |
+| P4b goal-aware scoring | — (parallel-friendly) | medium | open |
+| P5 hardening | — | small, continuous | ongoing |
 
-P3 is independent and small — it can be slotted in anytime as a break from the
-bigger work.
+Remaining work is P3b, P4, P4b, and P5 — all independent of each other. P4
+(the watchdog) is the highest-value remaining feature.
