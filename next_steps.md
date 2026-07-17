@@ -82,6 +82,14 @@ financials ETF, and a bond fund all get judged against the same "market weather.
 - Keep the S&P 500 check as a second, overall-regime signal (favorable/adverse
   becomes two-part: broad market + asset's neighborhood).
 - Cache benchmark fetches per analysis run (same pattern as the ^GSPC fix).
+- **Dynamic candidate discovery** (replaces the static candidate universe as
+  primary fallback): screen candidates by portfolio role/sector from market
+  data (e.g. constituents of the role's benchmark ETF, or a sector screen)
+  instead of the fixed `config/candidate_universe.json` list. The config file
+  remains the offline last resort. Candidates still pass the same validation
+  chain: real metrics → risk-tolerance filters → profile fit ≥ 50 → not held →
+  rank by health. Added 2026-07-17 after fixing empty/contradictory
+  suggestions; the fixed list is the remaining weak link.
 
 ## P4 — Active monitoring & email alerts ("the watchdog")
 
