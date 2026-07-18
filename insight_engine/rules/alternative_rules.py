@@ -1,4 +1,16 @@
 from insight_engine.domain.entities import AssetScores, NewsFlags, UserProfile
+from insight_engine.domain.enums import PortfolioRole
+
+# Portfolio roles that best serve each investment objective. Candidates whose
+# role matches the user's goal are ranked ahead of equally healthy alternatives.
+GOAL_PREFERRED_ROLES = {
+    "growth": {PortfolioRole.GROWTH_TECH.value},
+    "income": {PortfolioRole.DIVIDEND_INCOME.value},
+    "capital_protection": {
+        PortfolioRole.DEFENSIVE.value,
+        PortfolioRole.BONDS_STABILITY.value,
+    },
+}
 
 
 def should_trigger_alternatives(
@@ -41,6 +53,7 @@ def filter_and_rank_candidates(
       - max_drawdown: float | None
       - health_score: int
       - profile_fit_score: int (optional)
+      - role: str (optional) — the candidate's portfolio role
       - reason: str (optional)
     """
     risk = user_profile.risk.value
@@ -72,7 +85,11 @@ def filter_and_rank_candidates(
 
         filtered.append(c)
 
-    # Rank by health_score descending
-    filtered.sort(key=lambda x: x.get("health_score", 0), reverse=True)
+    # Rank by goal role-match first, then health score (both descending)
+    preferred = GOAL_PREFERRED_ROLES.get(user_profile.objective.value, set())
+    filtered.sort(
+        key=lambda x: (x.get("role") in preferred, x.get("health_score", 0)),
+        reverse=True,
+    )
 
     return filtered[:max_results]

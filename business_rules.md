@@ -194,13 +194,15 @@ Measures the overall quality of an asset's current state:
 
 ### 9.3 Profile Fit Score (0–100)
 
-Measures alignment between the asset and the user's risk profile:
+Measures alignment between the asset and the user's full profile — risk tolerance,
+horizon, **and investment objective**:
 
 | Component | Logic | Points |
 |-----------|-------|--------|
-| Volatility alignment | annualized_volatility ≤ threshold: 40; ≤ 1.5× threshold: 20; else: 0 | /40 |
-| Drawdown alignment | max_drawdown ≥ threshold: 30; ≥ 1.5× threshold: 15; else: 0 | /30 |
-| Horizon alignment | match=30, adjacent=15, mismatch or not_recommended=0 | /30 |
+| Volatility alignment | annualized_volatility ≤ threshold: 30; ≤ 1.5× threshold: 15; else: 0 | /30 |
+| Drawdown alignment | max_drawdown ≥ threshold: 25; ≥ 1.5× threshold: 12; else: 0 | /25 |
+| Horizon alignment | match=25, adjacent=12, mismatch or not_recommended=0 | /25 |
+| Objective alignment | see below | /20 |
 
 **Volatility thresholds by risk profile:**
 - low: 15%
@@ -211,6 +213,16 @@ Measures alignment between the asset and the user's risk profile:
 - low: -10%
 - moderate: -20%
 - high: -35%
+
+**Objective alignment (by `goal`):**
+- **growth:** revenue_growth ≥ 10%: 20; ≥ 0%: 12; < 0%: 0; unknown (e.g. ETFs): 10
+- **income:** dividend_yield ≥ 3%: 20; ≥ 1.5%: 12; > 0%: 5; none: 0
+- **capital_protection:** risk level low: 20; medium: 10; high: 0
+
+Dividend yield is normalized to a fraction (robust to yfinance reporting it as a
+percent). This objective component is what makes an income investor and a growth
+investor score the same asset differently — and, because alternative candidates
+must clear profile fit ≥ 50, it steers which alternatives surface.
 
 ### 9.4 News Risk Flags
 
@@ -246,7 +258,10 @@ Alternatives are triggered when **any** of these conditions are met:
 - `profile_fit_score` < 50 — an alternative must fit the user's profile at least as well as the threshold that triggers alternatives; otherwise the system would suggest assets it flags elsewhere
 - ticker is **already held in the portfolio** (something you own is not an alternative)
 
-**Ranking:** By health score descending.
+**Ranking:** By goal role-match first, then health score (both descending) — a
+candidate whose portfolio role matches the user's objective sorts ahead of an
+equally-or-more healthy non-matching one. Preferred roles: growth → GROWTH_TECH,
+income → DIVIDEND_INCOME, capital_protection → DEFENSIVE / BONDS_STABILITY.
 
 **Output:** Top 3 candidates after filtering, each carrying its health score and profile fit score.
 

@@ -194,7 +194,8 @@ def _evaluate_candidate(
         info = market_data_provider.fetch_info(ticker)
 
         from insight_engine.rules.benchmark_rules import get_benchmark_ticker
-        benchmark_ticker = get_benchmark_ticker(classify_role(info))
+        role = classify_role(info)
+        benchmark_ticker = get_benchmark_ticker(role)
         benchmark_hist = market_data_provider.fetch_history(benchmark_ticker, period="1y")
 
         from insight_engine.services.metrics import calculate_metrics
@@ -209,6 +210,7 @@ def _evaluate_candidate(
             ),
             "annualized_volatility": metrics.annualized_volatility,
             "max_drawdown": metrics.max_drawdown,
+            "role": role.value,
             "reason": reason,
         }
     except Exception as e:

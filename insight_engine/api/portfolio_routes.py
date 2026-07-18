@@ -455,6 +455,7 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
             revenue_growth=mets.get("revenue_growth"),
             profit_margin=mets.get("profit_margin"),
             debt_to_equity=mets.get("debt_to_equity"),
+            dividend_yield=mets.get("dividend_yield"),
             annualized_volatility=mets.get("annualized_volatility"),
             max_drawdown=mets.get("max_drawdown"),
             benchmark_ticker=mets.get("benchmark_ticker"),

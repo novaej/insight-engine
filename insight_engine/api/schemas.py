@@ -98,6 +98,7 @@ class MetricsResponse(BaseModel):
     revenue_growth: float | None = None
     profit_margin: float | None = None
     debt_to_equity: float | None = None
+    dividend_yield: float | None = None
     annualized_volatility: float | None = None
     max_drawdown: float | None = None
     benchmark_ticker: str | None = None

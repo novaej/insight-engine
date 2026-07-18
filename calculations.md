@@ -118,6 +118,10 @@ unit normalization.
 - **Debt-to-equity** (`debtToEquity`): how much the company owes relative to what
   shareholders own. yfinance reports this as a percentage, so the engine divides
   by 100 (e.g. 150 → 1.5). High leverage amplifies both gains and trouble.
+- **Dividend yield**: annual dividends as a fraction of price. Normalized to a
+  fraction (0.025 = 2.5%) from `trailingAnnualDividendYield` when available, else
+  `dividendYield / 100` (newer yfinance reports it as a percent). Feeds the
+  income-objective component of the Profile Fit Score.
 
 **How they're used:** Together they drive the fundamentals dimension
 (strong / mixed / weak) per the thresholds in `business_rules.md` §4.3.

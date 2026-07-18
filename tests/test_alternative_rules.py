@@ -172,3 +172,24 @@ def test_low_profile_fit_candidates_filtered():
     assert "NOFIT" not in tickers  # high health but poor fit is still excluded
     assert "FITS" in tickers
     assert "UNKNOWN_FIT" in tickers  # missing fit is not penalized
+
+
+def test_goal_role_match_ranks_first():
+    from insight_engine.domain.entities import UserProfile
+    from insight_engine.domain.enums import InvestmentObjective, PortfolioRole, RiskProfile
+    from insight_engine.rules.alternative_rules import filter_and_rank_candidates
+
+    income = UserProfile(
+        risk=RiskProfile.moderate, horizon="long", objective=InvestmentObjective.income
+    )
+    candidates = [
+        {"ticker": "TECH", "health_score": 90, "profile_fit_score": 60,
+         "role": PortfolioRole.GROWTH_TECH.value,
+         "annualized_volatility": 0.15, "max_drawdown": -0.10},
+        {"ticker": "DIVY", "health_score": 70, "profile_fit_score": 60,
+         "role": PortfolioRole.DIVIDEND_INCOME.value,
+         "annualized_volatility": 0.15, "max_drawdown": -0.10},
+    ]
+    result = filter_and_rank_candidates(candidates, income)
+    # Income goal prefers the dividend role even though tech has higher health
+    assert result[0]["ticker"] == "DIVY"

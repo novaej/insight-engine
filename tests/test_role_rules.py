@@ -70,8 +70,22 @@ class TestStockClassification:
         assert classify_role(info) == PortfolioRole.DEFENSIVE
 
     def test_high_dividend_stock(self):
-        info = {"quoteType": "EQUITY", "sector": "Energy", "marketCap": 200_000_000_000, "dividendYield": 0.05}
+        # 5% yield expressed as a fraction (trailingAnnualDividendYield)
+        info = {"quoteType": "EQUITY", "sector": "Energy", "marketCap": 200_000_000_000,
+                "trailingAnnualDividendYield": 0.05}
         assert classify_role(info) == PortfolioRole.DIVIDEND_INCOME
+
+    def test_high_dividend_stock_percent_units(self):
+        # yfinance dividendYield as a percent (5.0 = 5%) still classifies correctly
+        info = {"quoteType": "EQUITY", "sector": "Energy", "marketCap": 200_000_000_000,
+                "dividendYield": 5.0}
+        assert classify_role(info) == PortfolioRole.DIVIDEND_INCOME
+
+    def test_low_yield_stock_not_dividend_income(self):
+        # A tiny yield (0.3%) must NOT trip DIVIDEND_INCOME (the percent/fraction bug)
+        info = {"quoteType": "EQUITY", "sector": "Energy", "marketCap": 200_000_000_000,
+                "dividendYield": 0.3}
+        assert classify_role(info) == PortfolioRole.US_LARGE_CAP_CORE
 
     def test_large_cap_stock(self):
         info = {"quoteType": "EQUITY", "sector": "Industrials", "marketCap": 100_000_000_000}

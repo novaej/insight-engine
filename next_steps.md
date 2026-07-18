@@ -133,23 +133,15 @@ better with P2 (weights tell it which positions matter most).
 
 </details>
 
-## P4b — Wire the investment objective (goal) into deterministic scoring
+## P4b — Wire the investment objective (goal) into deterministic scoring ✅ DONE (2026-07-17)
 
-**Why:** audit on 2026-07-17 found `goal` (growth | income | capital_protection)
-is only used in the AI prompt's user-context line — no deterministic rule
-consumes it. An income investor and a growth investor currently get identical
-scores and alternative suggestions.
-
-**What to build (needs its own design pass on weights):**
-
-- `income` → add a dividend-yield component to the Profile Fit Score and prefer
-  DIVIDEND_INCOME-role candidates when ranking alternatives.
-- `capital_protection` → tighten the volatility/drawdown thresholds a notch
-  (e.g. treat one risk level stricter) and prefer DEFENSIVE/BONDS_STABILITY
-  candidates.
-- `growth` → current behavior (baseline).
-- Document the new weights in `business_rules.md` §9.3 and update
-  `calculations.md`.
+Implemented: Profile Fit Score gained a 20-point objective component (income →
+dividend yield, growth → revenue growth, capital_protection → low risk), with the
+other components rebalanced to vol 30 / drawdown 25 / horizon 25 / objective 20.
+Alternative candidates are ranked by goal role-match first, then health. Also
+fixed a latent bug: yfinance now reports `dividendYield` as a percent, so role
+classification (and the new income component) normalize it to a fraction via
+`normalize_dividend_yield`. `dividend_yield` is now a surfaced metric.
 
 ## P5 — Hardening & cleanup (ongoing, fits between steps)
 
@@ -174,7 +166,7 @@ scores and alternative suggestions.
 | P3 benchmark map | — (parallel-friendly) | small | ✅ done |
 | P3b dynamic candidate discovery | — | medium | ✅ done |
 | P4 watchdog + email | P1, better with P2 | large | ✅ done |
-| P4b goal-aware scoring | — (parallel-friendly) | medium | open |
+| P4b goal-aware scoring | — (parallel-friendly) | medium | ✅ done |
 | P5 hardening | — | small, continuous | ongoing |
 
 Remaining work is P3b, P4, P4b, and P5 — all independent of each other. P4

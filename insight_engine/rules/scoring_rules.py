@@ -52,34 +52,38 @@ def compute_profile_fit_score(
     dimensions: DimensionResults,
     user_profile: UserProfile,
 ) -> int:
-    """Compute a 0-100 profile fit score based on risk tolerance alignment."""
+    """Compute a 0-100 profile fit score.
+
+    Components: volatility (0-30) + drawdown (0-25) + horizon (0-25) +
+    objective alignment (0-20).
+    """
     score = 0
     risk = user_profile.risk.value  # low, moderate, high
 
-    # Volatility alignment (0-40)
+    # Volatility alignment (0-30)
     vol = metrics.annualized_volatility
     if vol is not None:
         vol_pct = vol * 100
         thresholds = {"low": 15, "moderate": 25, "high": 40}
         limit = thresholds.get(risk, 25)
         if vol_pct <= limit:
-            score += 40
+            score += 30
         elif vol_pct <= limit * 1.5:
-            score += 20
+            score += 15
         # else 0
 
-    # Drawdown alignment (0-30)
+    # Drawdown alignment (0-25)
     dd = metrics.max_drawdown
     if dd is not None:
         dd_thresholds = {"low": -0.10, "moderate": -0.20, "high": -0.35}
         limit = dd_thresholds.get(risk, -0.20)
         if dd >= limit:
-            score += 30
+            score += 25
         elif dd >= limit * 1.5:
-            score += 15
+            score += 12
         # else 0
 
-    # Horizon alignment (0-30)
+    # Horizon alignment (0-25)
     horizon_input = user_profile.horizon.lower()
     from insight_engine.domain.enums import Horizon
     from insight_engine.rules.horizon_rules import determine_horizon
@@ -101,9 +105,46 @@ def compute_profile_fit_score(
     if asset_order == -1:
         score += 0
     elif abs(asset_order - user_order) == 0:
-        score += 30
+        score += 25
     elif abs(asset_order - user_order) == 1:
-        score += 15
+        score += 12
     # else 0
 
+    # Objective alignment (0-20)
+    score += _objective_component(metrics, dimensions, user_profile)
+
     return max(0, min(100, score))
+
+
+def _objective_component(
+    metrics: MetricsSummary,
+    dimensions: DimensionResults,
+    user_profile: UserProfile,
+) -> int:
+    """Reward alignment with the user's objective (0-20)."""
+    objective = user_profile.objective.value  # growth, income, capital_protection
+
+    if objective == "income":
+        y = metrics.dividend_yield
+        if y is None or y <= 0:
+            return 0
+        if y >= 0.03:
+            return 20
+        if y >= 0.015:
+            return 12
+        return 5
+
+    if objective == "capital_protection":
+        return {RiskLevel.low: 20, RiskLevel.medium: 10, RiskLevel.high: 0}.get(
+            dimensions.risk_level, 0
+        )
+
+    # growth (default)
+    g = metrics.revenue_growth
+    if g is None:
+        return 10  # neutral — e.g. ETFs report no revenue growth
+    if g >= 0.10:
+        return 20
+    if g >= 0:
+        return 12
+    return 0

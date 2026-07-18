@@ -67,6 +67,7 @@ def insight_to_record(insight: Insight) -> InsightRecord:
             "revenue_growth": insight.metrics.revenue_growth,
             "profit_margin": insight.metrics.profit_margin,
             "debt_to_equity": insight.metrics.debt_to_equity,
+            "dividend_yield": insight.metrics.dividend_yield,
             "annualized_volatility": insight.metrics.annualized_volatility,
             "max_drawdown": insight.metrics.max_drawdown,
             "benchmark_ticker": insight.metrics.benchmark_ticker,

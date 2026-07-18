@@ -89,6 +89,11 @@ Body:
 - `use_ai` (default true): false skips OpenAI (mechanical text instead)
 - `language` (optional ISO code, e.g. `es`): translates AI text via Azure
 
+The investment `goal` now shapes analysis: it adds an objective component to each
+insight's profile fit score (income rewards dividend yield, growth rewards revenue
+growth, capital_protection rewards low risk) and biases alternative ranking toward
+goal-matching roles. Metrics include a normalized `dividend_yield` (a fraction).
+
 Market context is evaluated against the asset's **role benchmark** (e.g. QQQ
 for GROWTH_TECH; map in `config/benchmarks.json`). Each insight's metrics
 expose `benchmark_ticker` and `benchmark_above_sma200` so it's always visible

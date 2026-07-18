@@ -35,9 +35,11 @@ def _classify_etf(info: dict) -> PortfolioRole:
 
 
 def _classify_stock(info: dict) -> PortfolioRole:
+    from insight_engine.services.metrics import normalize_dividend_yield
+
     sector = (info.get("sector") or "").lower()
     market_cap = info.get("marketCap") or 0
-    dividend_yield = info.get("dividendYield") or 0
+    dividend_yield = normalize_dividend_yield(info) or 0  # fraction, unit-safe
 
     if sector in ("technology", "communication services"):
         return PortfolioRole.GROWTH_TECH

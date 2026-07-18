@@ -124,10 +124,11 @@ class TestProfileFitScore:
             objective=InvestmentObjective.capital_protection,
         )
         score = compute_profile_fit_score(metrics, dims, profile)
-        # vol 10% <= 15% → 40
-        # dd -5% >= -10% → 30
-        # asset: weak fundamentals → risky → short_term, user short → match → 30
-        assert score == 100
+        # vol 10% <= 15% → 30
+        # dd -5% >= -10% → 25
+        # asset: weak fundamentals → risky → short_term, user short → match → 25
+        # objective capital_protection: risk_level high → 0
+        assert score == 80
 
     def test_volatility_mismatch(self):
         metrics = MetricsSummary(
@@ -170,10 +171,11 @@ class TestProfileFitScore:
             objective=InvestmentObjective.growth,
         )
         score = compute_profile_fit_score(metrics, dims, profile)
-        # vol 35% <= 40% → 40
-        # dd -30% >= -35% → 30
-        # horizon match: long → long → 30
-        assert score == 100
+        # vol 35% <= 40% → 30
+        # dd -30% >= -35% → 25
+        # horizon match: long → long → 25
+        # objective growth: revenue_growth None → 10 (neutral)
+        assert score == 90
 
     def test_none_metrics(self):
         metrics = MetricsSummary()
@@ -192,8 +194,9 @@ class TestProfileFitScore:
         score = compute_profile_fit_score(metrics, dims, profile)
         # vol None → 0
         # dd None → 0
-        # horizon: neutral → medium_term, user medium → match → 30
-        assert score == 30
+        # horizon: neutral → medium_term, user medium → match → 25
+        # objective growth: revenue_growth None → 10 (neutral)
+        assert score == 35
 
     def test_horizon_adjacent_partial_score(self):
         metrics = MetricsSummary(
@@ -213,7 +216,55 @@ class TestProfileFitScore:
             objective=InvestmentObjective.growth,
         )
         score = compute_profile_fit_score(metrics, dims, profile)
-        # vol 20% <= 25% → 40
-        # dd -15% >= -20% → 30
-        # asset: healthy + bullish + low → long_term (order 2), user medium (order 1) → adjacent → 15
-        assert score == 85
+        # vol 20% <= 25% → 30
+        # dd -15% >= -20% → 25
+        # asset: healthy + bullish + low → long_term (order 2), user medium (order 1) → adjacent → 12
+        # objective growth: revenue_growth None → 10 (neutral)
+        assert score == 77
+
+
+class TestObjectiveComponent:
+    def _dims(self, risk=RiskLevel.medium):
+        return DimensionResults(
+            trend=Trend.sideways, valuation=Valuation.reasonable,
+            fundamentals=Fundamentals.mixed, risk_level=risk,
+            market_context=MarketContext.favorable,
+        )
+
+    def test_income_rewards_dividend_yield(self):
+        dims = self._dims()
+        high_yield = MetricsSummary(dividend_yield=0.04)
+        no_yield = MetricsSummary(dividend_yield=0.0)
+        income = UserProfile(risk=RiskProfile.moderate, horizon="long",
+                             objective=InvestmentObjective.income)
+        # Same asset scores higher for an income investor when it pays a dividend
+        assert compute_profile_fit_score(high_yield, dims, income) > \
+            compute_profile_fit_score(no_yield, dims, income)
+
+    def test_growth_rewards_revenue_growth(self):
+        dims = self._dims()
+        growing = MetricsSummary(revenue_growth=0.20)
+        shrinking = MetricsSummary(revenue_growth=-0.10)
+        growth = UserProfile(risk=RiskProfile.moderate, horizon="long",
+                             objective=InvestmentObjective.growth)
+        assert compute_profile_fit_score(growing, dims, growth) > \
+            compute_profile_fit_score(shrinking, dims, growth)
+
+    def test_capital_protection_rewards_low_risk(self):
+        low = MetricsSummary()
+        prot = UserProfile(risk=RiskProfile.moderate, horizon="long",
+                           objective=InvestmentObjective.capital_protection)
+        low_risk = compute_profile_fit_score(low, self._dims(RiskLevel.low), prot)
+        high_risk = compute_profile_fit_score(low, self._dims(RiskLevel.high), prot)
+        assert low_risk > high_risk
+
+    def test_goal_changes_fit_for_same_asset(self):
+        # A high-yield, no-growth asset fits an income investor better than growth
+        dims = self._dims()
+        metrics = MetricsSummary(dividend_yield=0.05, revenue_growth=-0.05)
+        income = UserProfile(risk=RiskProfile.moderate, horizon="long",
+                             objective=InvestmentObjective.income)
+        growth = UserProfile(risk=RiskProfile.moderate, horizon="long",
+                             objective=InvestmentObjective.growth)
+        assert compute_profile_fit_score(metrics, dims, income) > \
+            compute_profile_fit_score(metrics, dims, growth)

@@ -154,3 +154,26 @@ def test_calculate_metrics_sanitizes_nan():
     assert metrics.debt_to_equity is None
     assert metrics.profit_margin == 0.2
     assert metrics.current_price is not None
+
+
+def test_normalize_dividend_yield():
+    from insight_engine.services.metrics import normalize_dividend_yield
+
+    # trailingAnnualDividendYield is a fraction and preferred
+    assert normalize_dividend_yield({"trailingAnnualDividendYield": 0.025}) == 0.025
+    # dividendYield is a percent in newer yfinance -> divided by 100
+    assert normalize_dividend_yield({"dividendYield": 2.5}) == 0.025
+    # trailing preferred over raw when both present
+    assert normalize_dividend_yield(
+        {"trailingAnnualDividendYield": 0.02, "dividendYield": 9.9}
+    ) == 0.02
+    # neither -> None
+    assert normalize_dividend_yield({}) is None
+
+
+def test_calculate_metrics_populates_dividend_yield():
+    n = 250
+    close = pd.Series(np.linspace(100, 120, n))
+    hist = pd.DataFrame({"Close": close, "High": close + 1, "Low": close - 1})
+    metrics = calculate_metrics(hist, {"dividendYield": 3.0})
+    assert abs(metrics.dividend_yield - 0.03) < 1e-9

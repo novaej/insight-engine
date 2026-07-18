@@ -6,6 +6,22 @@ import pandas as pd
 from insight_engine.domain.entities import MetricsSummary
 
 
+def normalize_dividend_yield(info: dict) -> float | None:
+    """Dividend yield as a fraction (0.025 = 2.5%), robust to yfinance units.
+
+    Prefers trailingAnnualDividendYield (already a fraction); falls back to
+    dividendYield, which newer yfinance reports as a percent (2.5), divided by 100.
+    """
+    trailing = info.get("trailingAnnualDividendYield")
+    if trailing is not None:
+        return _finite(trailing)
+    raw = info.get("dividendYield")
+    if raw is None:
+        return None
+    value = _finite(raw)
+    return value / 100.0 if value is not None else None
+
+
 def _finite(value) -> float | None:
     """Return the value as a float if finite, else None.
 
@@ -153,6 +169,7 @@ def calculate_metrics(
     debt_to_equity = info.get("debtToEquity")
     if debt_to_equity is not None:
         debt_to_equity = debt_to_equity / 100.0  # yfinance reports as percentage
+    dividend_yield = normalize_dividend_yield(info)
 
     max_drawdown = calculate_max_drawdown(close)
     annualized_volatility = calculate_annualized_volatility(close)
@@ -177,6 +194,7 @@ def calculate_metrics(
         revenue_growth=_finite(revenue_growth),
         profit_margin=_finite(profit_margin),
         debt_to_equity=_finite(debt_to_equity),
+        dividend_yield=_finite(dividend_yield),
         max_drawdown=_finite(max_drawdown),
         annualized_volatility=_finite(annualized_volatility),
         benchmark_ticker=benchmark_ticker,
