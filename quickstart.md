@@ -314,8 +314,9 @@ Translation requires all three Azure Translator variables. Without them, text is
 
 With `MONITORING_ENABLED=true` the server runs a daily change-detection sweep
 (APScheduler, `MONITORING_CRON`) that re-analyzes holdings and emails a digest of
-adverse changes (state downgrades, health drops, price crossing its 200-day
-average, etc.) via Mailgun. Run a single scheduler process (`uvicorn --workers 1`)
+both adverse changes (state downgrades, health drops, price crossing below its
+200-day average) and favorable moves (upgrades, health rises, breakouts above the
+200-day average) via Mailgun. Run a single scheduler process (`uvicorn --workers 1`)
 so alerts don't double-send.
 
 Trigger a sweep on demand (e.g. from your own cron):

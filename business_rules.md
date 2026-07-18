@@ -298,25 +298,35 @@ non-prescriptive constraints.
 
 A scheduled monitoring sweep re-analyzes each holding and compares it to the
 ticker's most recent prior insight (the P1 history). All detection is
-deterministic — no AI. Only **adverse transitions** are reported in v1
-(recoveries are a future add). The first run per ticker is a baseline and sends
-nothing.
+deterministic — no AI. Both **adverse** (deteriorating) and **favorable**
+(improving/growing) transitions are reported, each tagged with a direction. The
+first run per ticker is a baseline and sends nothing.
 
-**Triggers (previous → current):**
+**Adverse triggers (previous → current):**
 
 | Trigger | Condition |
 |---------|-----------|
 | State worsened | asset state dropped a rank (healthy > healthy_but_expensive > neutral > risky > unattractive) |
 | Health drop | health score fell ≥ 15 points |
-| SMA 200 cross | price was at/above its 200-day SMA and is now below |
+| SMA 200 cross down | price was at/above its 200-day SMA and is now below |
 | SAR bearish | price was at/above Parabolic SAR and is now below |
 | Drawdown breach | max drawdown newly exceeds the profile's tolerance (low −15%, moderate −25%, high −35%) |
 | News flag | a news flag (regulatory/earnings/management/litigation) is active now but wasn't last run |
 
-When a user has any change events, one **digest email** is sent (grouped, plain
-language, with an educational disclaimer). Alerts describe what changed and why
-it may matter — never buy/sell instructions. Users opt out via
-`alerts_enabled=false`.
+**Favorable triggers (the mirror moves — spot strength/upside):**
+
+| Trigger | Condition |
+|---------|-----------|
+| State improved | asset state rose a rank |
+| Health rise | health score rose ≥ 15 points |
+| SMA 200 cross up | price was below its 200-day SMA and is now at/above |
+| SAR bullish | price was below Parabolic SAR and is now at/above |
+
+When a user has any change events, one **digest email** is sent, grouped into
+"Positive moves" and "Potential concerns", in plain language with an educational
+disclaimer. Alerts describe what changed and why it may matter — never buy/sell
+instructions (including no "sell high" advice; the upside signals are context for
+the user to decide). Users opt out via `alerts_enabled=false`.
 
 ## 10. Use of AI
 

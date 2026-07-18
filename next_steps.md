@@ -98,8 +98,9 @@ detects state downgrades, health drops ≥15, SMA-200 / Parabolic-SAR bearish
 crosses, drawdown-tolerance breaches, and new news flags. One Mailgun digest per
 user with changes; per-user opt-out via `alerts_enabled`; baseline run sends
 nothing. No AI on this path. Persisted `news_flags` on insights to support news
-transitions. **Deferred (future):** LLM news-relevance filtering, per-event dedup
-beyond consecutive-run comparison, positive-recovery alerts.
+transitions. Detects both adverse and favorable (upside) moves so the user can
+spot strength as well as deterioration. **Deferred (future):** LLM news-relevance
+filtering, per-event dedup beyond consecutive-run comparison.
 
 <details><summary>Original P4 notes</summary>
 

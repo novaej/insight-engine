@@ -145,8 +145,10 @@ portfolio (no auth). Body: `ticker` (required), optional `user_profile`,
 ## Monitoring (watchdog)
 
 ### POST /monitoring/run
-Re-analyzes every alert-enabled user's holdings, detects adverse changes vs. the
-last stored insight per ticker, and emails a plain-language digest via Mailgun.
+Re-analyzes every alert-enabled user's holdings, detects both adverse and
+favorable (upside) changes vs. the last stored insight per ticker, and emails a
+plain-language digest via Mailgun grouped into "Positive moves" and "Potential
+concerns".
 Deterministic (no AI). Authorized by the `X-Monitoring-Token` header matching the
 `MONITORING_TOKEN` env var — **not** a user bearer token, so an unattended
 cron/scheduler can call it. Unset token → 503; wrong token → 403. Returns

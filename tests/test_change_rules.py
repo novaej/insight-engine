@@ -1,5 +1,10 @@
 from insight_engine.domain.enums import AssetState
-from insight_engine.rules.change_rules import Snapshot, detect_changes
+from insight_engine.rules.change_rules import (
+    ADVERSE,
+    FAVORABLE,
+    Snapshot,
+    detect_changes,
+)
 
 
 def _snap(**kw):
@@ -32,11 +37,42 @@ def test_state_worsened():
     assert "state_worsened" in kinds
 
 
-def test_state_improved_not_flagged():
+def test_state_improved_is_favorable():
     events = detect_changes(
         _snap(asset_state=AssetState.risky), _snap(asset_state=AssetState.healthy), "moderate"
     )
+    improved = [e for e in events if e.kind == "state_improved"]
+    assert len(improved) == 1
+    assert improved[0].direction == FAVORABLE
     assert all(e.kind != "state_worsened" for e in events)
+
+
+def test_health_rise_is_favorable():
+    events = detect_changes(_snap(health_score=50), _snap(health_score=70), "moderate")
+    rises = [e for e in events if e.kind == "health_rise"]
+    assert len(rises) == 1
+    assert rises[0].direction == FAVORABLE
+
+
+def test_price_cross_above_is_favorable():
+    prev = _snap(current_price=85.0, sma_200=90.0)   # below
+    curr = _snap(current_price=95.0, sma_200=90.0)   # above
+    events = detect_changes(prev, curr, "moderate")
+    assert any(e.kind == "sma200_cross_above" and e.direction == FAVORABLE for e in events)
+
+
+def test_sar_turned_bullish_is_favorable():
+    prev = _snap(current_price=90.0, parabolic_sar=95.0)  # price below SAR
+    curr = _snap(current_price=100.0, parabolic_sar=95.0)  # price above SAR
+    events = detect_changes(prev, curr, "moderate")
+    assert any(e.kind == "sar_bullish" and e.direction == FAVORABLE for e in events)
+
+
+def test_adverse_events_tagged_adverse():
+    prev = _snap(asset_state=AssetState.healthy, health_score=80)
+    curr = _snap(asset_state=AssetState.risky, health_score=55)
+    events = detect_changes(prev, curr, "moderate")
+    assert events and all(e.direction == ADVERSE for e in events)
 
 
 def test_health_drop():

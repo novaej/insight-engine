@@ -104,7 +104,7 @@ async def test_change_triggers_one_email():
     assert summary["emails_sent"] == 1
     email.send.assert_called_once()
     subject = email.send.call_args.args[1]
-    assert "1 change" in subject
+    assert "1 update" in subject
 
 
 @pytest.mark.asyncio

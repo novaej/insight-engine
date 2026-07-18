@@ -15,7 +15,12 @@ from insight_engine.domain.entities import AssetScores, UserProfile
 from insight_engine.domain.enums import AssetState
 from insight_engine.domain.models import InsightRecord, Portfolio, Position, User
 from insight_engine.ports import EmailProvider, MarketDataProvider
-from insight_engine.rules.change_rules import ChangeEvent, Snapshot, detect_changes
+from insight_engine.rules.change_rules import (
+    FAVORABLE,
+    ChangeEvent,
+    Snapshot,
+    detect_changes,
+)
 from insight_engine.rules.news_rules import extract_news_flags
 from insight_engine.rules.scoring_rules import compute_health_score, compute_profile_fit_score
 from insight_engine.services.analysis import analyze_asset
@@ -75,8 +80,10 @@ async def run_monitoring(
 
         if events:
             changes_detected += len(events)
-            subject = f"Vestio: {len(events)} change(s) in your portfolio"
-            if email_provider.send(user.email, subject, _text_body(events), _html_body(events)):
+            subject = f"Vestio: {len(events)} update(s) in your portfolio"
+            if email_provider.send(
+                user.email, subject, _text_body(events), _html_body(events)
+            ):
                 emails_sent += 1
 
     return {
@@ -177,17 +184,38 @@ def _news_dict(news_flags) -> dict | None:
     }
 
 
+def _split(events: list[ChangeEvent]) -> tuple[list[ChangeEvent], list[ChangeEvent]]:
+    favorable = [e for e in events if e.direction == FAVORABLE]
+    adverse = [e for e in events if e.direction != FAVORABLE]
+    return favorable, adverse
+
+
 def _text_body(events: list[ChangeEvent]) -> str:
+    favorable, adverse = _split(events)
     lines = ["Changes detected in your portfolio since the last check:", ""]
-    lines += [f"- {e.message}" for e in events]
-    lines += ["", DISCLAIMER]
+    if favorable:
+        lines.append("Positive moves:")
+        lines += [f"- {e.message}" for e in favorable]
+        lines.append("")
+    if adverse:
+        lines.append("Potential concerns:")
+        lines += [f"- {e.message}" for e in adverse]
+        lines.append("")
+    lines.append(DISCLAIMER)
     return "\n".join(lines)
 
 
 def _html_body(events: list[ChangeEvent]) -> str:
-    items = "".join(f"<li>{e.message}</li>" for e in events)
+    favorable, adverse = _split(events)
+    sections = ""
+    if favorable:
+        items = "".join(f"<li>{e.message}</li>" for e in favorable)
+        sections += f"<p><strong>Positive moves</strong></p><ul>{items}</ul>"
+    if adverse:
+        items = "".join(f"<li>{e.message}</li>" for e in adverse)
+        sections += f"<p><strong>Potential concerns</strong></p><ul>{items}</ul>"
     return (
         "<p>Changes detected in your portfolio since the last check:</p>"
-        f"<ul>{items}</ul>"
+        f"{sections}"
         f"<p style='color:#666;font-size:12px'>{DISCLAIMER}</p>"
     )
