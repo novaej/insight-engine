@@ -1,6 +1,7 @@
 import datetime
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     Float,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -30,6 +32,9 @@ class User(Base):
     # SHA-256 hex of the bearer token; rotated on each login
     api_token_hash: Mapped[str | None] = mapped_column(
         String(64), nullable=True, unique=True
+    )
+    alerts_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=true()
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -98,6 +103,7 @@ class InsightRecord(Base):
     profile_fit_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     alternatives: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     position_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    news_flags: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -23,6 +23,17 @@ from insight_engine.domain.models import User
 router = APIRouter(tags=["users"])
 
 
+def _user_response(user: User) -> UserResponse:
+    # alerts_enabled is None on a freshly built object until the DB default
+    # applies; treat unset as enabled.
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        alerts_enabled=True if user.alerts_enabled is None else user.alerts_enabled,
+    )
+
+
 @router.post("/users", response_model=UserResponse, status_code=201)
 async def register_user(
     request: UserCreateRequest,
@@ -42,7 +53,7 @@ async def register_user(
     session.add(user)
     await session.commit()
 
-    return UserResponse(id=user.id, email=user.email, name=user.name)
+    return _user_response(user)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -73,7 +84,7 @@ async def login(
 @router.get("/users/me", response_model=UserResponse)
 async def get_me(user: User = Depends(get_current_user)):
     """Return the authenticated user."""
-    return UserResponse(id=user.id, email=user.email, name=user.name)
+    return _user_response(user)
 
 
 @router.patch("/users/me", response_model=UserResponse)
@@ -94,6 +105,9 @@ async def update_me(
     if request.name is not None:
         user.name = request.name
 
+    if request.alerts_enabled is not None:
+        user.alerts_enabled = request.alerts_enabled
+
     if request.password is not None:
         if request.current_password is None or not verify_password(
             request.current_password, user.password_hash or ""
@@ -107,7 +121,7 @@ async def update_me(
         user.api_token_hash = None
 
     await session.commit()
-    return UserResponse(id=user.id, email=user.email, name=user.name)
+    return _user_response(user)
 
 
 @router.delete("/users/me", status_code=204)

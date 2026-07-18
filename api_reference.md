@@ -29,6 +29,7 @@ password change.
 | GET | `/insights` | ✓ | Insight history with filters |
 | POST | `/profile/interpret` | ✓ | Plain words → structured user profile (AI) |
 | POST | `/assets/analyze` | — | Ad hoc single-ticker analysis |
+| POST | `/monitoring/run` | token | Run the change-detection sweep, email digests |
 
 ## Users & authentication
 
@@ -140,6 +141,23 @@ rationale says so. 502 if the AI is unavailable or returns something invalid.
 Analyzes any single ticker ad hoc — same pipeline, but not tied to a user or
 portfolio (no auth). Body: `ticker` (required), optional `user_profile`,
 `use_ai`, `language`.
+
+## Monitoring (watchdog)
+
+### POST /monitoring/run
+Re-analyzes every alert-enabled user's holdings, detects adverse changes vs. the
+last stored insight per ticker, and emails a plain-language digest via Mailgun.
+Deterministic (no AI). Authorized by the `X-Monitoring-Token` header matching the
+`MONITORING_TOKEN` env var — **not** a user bearer token, so an unattended
+cron/scheduler can call it. Unset token → 503; wrong token → 403. Returns
+`{users_swept, emails_sent, changes_detected}`.
+
+The server also runs this automatically when `MONITORING_ENABLED=true` (in-process
+APScheduler on `MONITORING_CRON`, default daily 09:00). Run one scheduler process
+to avoid duplicate emails. Manual one-off: `python -m insight_engine.jobs.monitoring`.
+
+Per-user opt-out: `PATCH /users/me {"alerts_enabled": false}` (also in `GET /users/me`).
+The first sweep of a ticker sets a baseline and sends nothing.
 
 ## Error conventions
 

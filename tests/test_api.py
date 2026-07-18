@@ -415,3 +415,46 @@ def test_include_alternatives_false_skips_resolution(
     mock_resolve.assert_not_called()
     alt = response.json()["insights"][0]["alternatives"]
     assert alt is None or alt["triggered"] is False
+
+
+def test_monitoring_run_requires_token():
+    from insight_engine.config import settings
+
+    # Unset token → 503
+    original = settings.monitoring_token
+    settings.monitoring_token = ""
+    try:
+        r = client.post("/monitoring/run")
+        assert r.status_code == 503
+    finally:
+        settings.monitoring_token = original
+
+
+def test_monitoring_run_token_gating():
+    from insight_engine.config import settings
+
+    original = settings.monitoring_token
+    settings.monitoring_token = "secret-cron-token"
+    try:
+        # Wrong token → 403
+        bad = client.post("/monitoring/run", headers={"X-Monitoring-Token": "nope"})
+        assert bad.status_code == 403
+
+        # Correct token → 200 (mocked session returns no users)
+        with patch(
+            "insight_engine.api.monitoring_routes.run_monitoring",
+            return_value={"users_swept": 0, "emails_sent": 0, "changes_detected": 0},
+        ):
+            ok = client.post(
+                "/monitoring/run", headers={"X-Monitoring-Token": "secret-cron-token"}
+            )
+        assert ok.status_code == 200
+        assert ok.json()["users_swept"] == 0
+    finally:
+        settings.monitoring_token = original
+
+
+def test_patch_alerts_enabled():
+    response = client.patch("/users/me", json={"alerts_enabled": False})
+    assert response.status_code == 200
+    assert response.json()["alerts_enabled"] is False

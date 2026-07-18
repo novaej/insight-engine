@@ -50,6 +50,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     name: str | None = None
+    alerts_enabled: bool = True
 
 
 class UserUpdateRequest(BaseModel):
@@ -59,6 +60,7 @@ class UserUpdateRequest(BaseModel):
     current_password: str | None = Field(
         None, description="Required when changing the password"
     )
+    alerts_enabled: bool | None = None
 
 
 class LoginRequest(BaseModel):
@@ -123,6 +125,13 @@ class PositionContextResponse(BaseModel):
     unrealized_gain_pct: float | None = None
 
 
+class NewsFlagsResponse(BaseModel):
+    regulatory_risk: bool = False
+    earnings_negative: bool = False
+    management_change: bool = False
+    litigation_risk: bool = False
+
+
 class ConcentrationResponse(BaseModel):
     state: str
     flagged_tickers: list[str] = []
@@ -144,6 +153,7 @@ class InsightResponse(BaseModel):
     alternatives: AlternativesResponse | None = None
     analyzed_at: datetime.datetime | None = None
     position: PositionContextResponse | None = None
+    news_flags: NewsFlagsResponse | None = None
 
 
 class PortfolioAsset(BaseModel):

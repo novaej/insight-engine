@@ -294,6 +294,30 @@ non-prescriptive constraints.
 
 ---
 
+## 9c. Change Detection & Alerts (the watchdog)
+
+A scheduled monitoring sweep re-analyzes each holding and compares it to the
+ticker's most recent prior insight (the P1 history). All detection is
+deterministic — no AI. Only **adverse transitions** are reported in v1
+(recoveries are a future add). The first run per ticker is a baseline and sends
+nothing.
+
+**Triggers (previous → current):**
+
+| Trigger | Condition |
+|---------|-----------|
+| State worsened | asset state dropped a rank (healthy > healthy_but_expensive > neutral > risky > unattractive) |
+| Health drop | health score fell ≥ 15 points |
+| SMA 200 cross | price was at/above its 200-day SMA and is now below |
+| SAR bearish | price was at/above Parabolic SAR and is now below |
+| Drawdown breach | max drawdown newly exceeds the profile's tolerance (low −15%, moderate −25%, high −35%) |
+| News flag | a news flag (regulatory/earnings/management/litigation) is active now but wasn't last run |
+
+When a user has any change events, one **digest email** is sent (grouped, plain
+language, with an educational disclaimer). Alerts describe what changed and why
+it may matter — never buy/sell instructions. Users opt out via
+`alerts_enabled=false`.
+
 ## 10. Use of AI
 
 The AI:

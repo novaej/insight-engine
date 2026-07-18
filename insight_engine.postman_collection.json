@@ -11,7 +11,8 @@
     { "key": "token", "value": "" },
     { "key": "ticker", "value": "AAPL" },
     { "key": "position_id", "value": "1" },
-    { "key": "language", "value": "en" }
+    { "key": "language", "value": "en" },
+    { "key": "monitoring_token", "value": "" }
   ],
   "item": [
     {
@@ -213,6 +214,22 @@
               "raw": "{\n  \"assets\": [\n    {\"ticker\": \"AAPL\", \"quantity\": 15},\n    {\"ticker\": \"GOOGL\", \"quantity\": 8}\n  ],\n  \"use_ai\": true,\n  \"include_alternatives\": true,\n  \"language\": \"{{language}}\"\n}"
             },
             "description": "Replaces stored lots and re-analyzes. Optional user_profile. {{language}}: ISO code for AI-text translation; 'en' skips it."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "item": [
+        {
+          "name": "Run monitoring sweep",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Monitoring-Token", "value": "{{monitoring_token}}" }
+            ],
+            "url": "{{base_url}}/monitoring/run",
+            "description": "Runs change detection across all alert-enabled users and emails digests via Mailgun. Authorized by the MONITORING_TOKEN (set the {{monitoring_token}} variable), not a user bearer token. Unset server token -> 503; wrong token -> 403. Deterministic, no AI."
           }
         }
       ]

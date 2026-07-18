@@ -10,81 +10,21 @@ from insight_engine.api.schemas import (
     DimensionsResponse,
     InsightResponse,
     MetricsResponse,
+    NewsFlagsResponse,
     PositionContextResponse,
 )
 from insight_engine.database import get_session
 from insight_engine.domain.entities import AlternativesResult, Insight, UserProfile
-from insight_engine.domain.models import InsightRecord
 from insight_engine.providers import get_market_data_provider
 from insight_engine.services.alternatives import prepare_alternatives_context, resolve_alternatives
 from insight_engine.services.analysis import analyze_asset
+from insight_engine.services.insight_store import insight_to_record
 from insight_engine.services.translator import translate_insight
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
-
-def _to_record(insight: Insight) -> InsightRecord:
-    """Convert an Insight entity to a database record."""
-    alternatives_json = None
-    if insight.alternatives and insight.alternatives.triggered:
-        alternatives_json = {
-            "triggered": True,
-            "trigger_reasons": insight.alternatives.trigger_reasons,
-            "suggestions": [
-                {
-                    "ticker": s.ticker,
-                    "health_score": s.health_score,
-                    "profile_fit_score": s.profile_fit_score,
-                    "reason": s.reason,
-                }
-                for s in insight.alternatives.suggestions
-            ],
-        }
-
-    position_json = None
-    if insight.position is not None:
-        position_json = {
-            "quantity": insight.position.quantity,
-            "market_value": insight.position.market_value,
-            "weight": insight.position.weight,
-            "avg_purchase_price": insight.position.avg_purchase_price,
-            "unrealized_gain_pct": insight.position.unrealized_gain_pct,
-        }
-
-    return InsightRecord(
-        ticker=insight.ticker,
-        asset_state=insight.asset_state.value,
-        dimensions={
-            "trend": insight.dimensions.trend.value,
-            "valuation": insight.dimensions.valuation.value,
-            "fundamentals": insight.dimensions.fundamentals.value,
-            "risk_level": insight.dimensions.risk_level.value,
-            "market_context": insight.dimensions.market_context.value,
-        },
-        metrics={
-            "current_price": insight.metrics.current_price,
-            "sma_50": insight.metrics.sma_50,
-            "sma_200": insight.metrics.sma_200,
-            "parabolic_sar": insight.metrics.parabolic_sar,
-            "pe_ratio": insight.metrics.pe_ratio,
-            "revenue_growth": insight.metrics.revenue_growth,
-            "profit_margin": insight.metrics.profit_margin,
-            "debt_to_equity": insight.metrics.debt_to_equity,
-            "annualized_volatility": insight.metrics.annualized_volatility,
-            "max_drawdown": insight.metrics.max_drawdown,
-            "benchmark_ticker": insight.metrics.benchmark_ticker,
-            "benchmark_above_sma200": insight.metrics.benchmark_above_sma200,
-        },
-        horizon=insight.horizon.value,
-        scenario=insight.scenario,
-        risks=insight.risks,
-        explanation=insight.explanation,
-        portfolio_role=insight.portfolio_role.value if insight.portfolio_role else None,
-        health_score=insight.scores.health_score if insight.scores else None,
-        profile_fit_score=insight.scores.profile_fit_score if insight.scores else None,
-        alternatives=alternatives_json,
-        position_context=position_json,
-    )
+# Re-export so existing importers (portfolio_routes) keep working.
+_to_record = insight_to_record
 
 
 @router.post("/analyze", response_model=InsightResponse)
@@ -197,5 +137,13 @@ def _build_insight_response(insight: Insight) -> InsightResponse:
             unrealized_gain_pct=insight.position.unrealized_gain_pct,
         )
         if insight.position
+        else None,
+        news_flags=NewsFlagsResponse(
+            regulatory_risk=insight.news_flags.regulatory_risk,
+            earnings_negative=insight.news_flags.earnings_negative,
+            management_change=insight.news_flags.management_change,
+            litigation_risk=insight.news_flags.litigation_risk,
+        )
+        if insight.news_flags
         else None,
     )

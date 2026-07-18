@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from insight_engine.adapters.caching import CachingMarketDataProvider
 from insight_engine.ai.handlers import generate_batch_explanations
-from insight_engine.api.asset_routes import _build_insight_response, _to_record
+from insight_engine.api.asset_routes import _build_insight_response
 from insight_engine.api.deps import get_current_user, get_user_portfolio
 from insight_engine.api.schemas import (
     AlternativeResponse,
@@ -15,6 +15,7 @@ from insight_engine.api.schemas import (
     DimensionsResponse,
     InsightResponse,
     MetricsResponse,
+    NewsFlagsResponse,
     PortfolioAsset,
     PortfolioRequest,
     PortfolioResponse,
@@ -49,6 +50,7 @@ from insight_engine.rules.concentration_rules import (
 )
 from insight_engine.services.alternatives import prepare_alternatives_context, resolve_alternatives
 from insight_engine.services.analysis import analyze_asset
+from insight_engine.services.insight_store import save_insights
 from insight_engine.services.translator import translate_insight, translate_texts
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
@@ -150,10 +152,7 @@ async def _run_analysis(
     )
 
     # Append new insights; history is kept
-    for insight in insights:
-        record = _to_record(insight)
-        record.portfolio_id = portfolio_id
-        session.add(record)
+    save_insights(session, portfolio_id, insights)
 
     overall_risk = determine_weighted_risk(insights)
     summary = _build_summary(insights, overall_risk, total_value, concentration)
@@ -472,6 +471,9 @@ def _record_to_response(record: InsightRecord) -> InsightResponse:
         analyzed_at=record.created_at,
         position=PositionContextResponse(**record.position_context)
         if record.position_context
+        else None,
+        news_flags=NewsFlagsResponse(**record.news_flags)
+        if record.news_flags
         else None,
     )
 

@@ -25,3 +25,9 @@ class MarketDataProvider(Protocol):
     def fetch_news(self, ticker: str) -> list[dict]: ...
 
     def fetch_holdings(self, etf_ticker: str) -> list[str]: ...
+
+
+class EmailProvider(Protocol):
+    def send(
+        self, to: str, subject: str, text: str, html: str | None = None
+    ) -> bool: ...

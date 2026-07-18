@@ -1,8 +1,14 @@
 from insight_engine.adapters.azure_translator import AzureTranslatorProvider
+from insight_engine.adapters.mailgun_email import MailgunEmailProvider
 from insight_engine.adapters.openai_llm import OpenAILLMProvider
 from insight_engine.adapters.yahoo_finance import YahooFinanceProvider
 from insight_engine.config import settings
-from insight_engine.ports import LLMProvider, MarketDataProvider, TranslatorProvider
+from insight_engine.ports import (
+    EmailProvider,
+    LLMProvider,
+    MarketDataProvider,
+    TranslatorProvider,
+)
 
 
 def get_llm_provider() -> LLMProvider:
@@ -19,3 +25,11 @@ def get_translator_provider() -> TranslatorProvider:
 
 def get_market_data_provider() -> MarketDataProvider:
     return YahooFinanceProvider()
+
+
+def get_email_provider() -> EmailProvider:
+    return MailgunEmailProvider(
+        api_key=settings.mailgun_api_key,
+        domain=settings.mailgun_domain,
+        from_email=settings.mailgun_from_email,
+    )

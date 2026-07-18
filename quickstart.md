@@ -300,6 +300,32 @@ alembic upgrade head
 | `AZURE_TRANSLATOR_KEY` | No | — | Azure Translator API key for multi-language support |
 | `AZURE_TRANSLATOR_ENDPOINT` | No | — | Azure Translator endpoint URL |
 | `AZURE_TRANSLATOR_REGION` | No | — | Azure Translator region (e.g. `westeurope`) |
+| `MAILGUN_API_KEY` | No | — | Mailgun API key for alert emails |
+| `MAILGUN_DOMAIN` | No | — | Mailgun sending domain |
+| `MAILGUN_FROM_EMAIL` | No | — | From address for alert emails |
+| `MONITORING_TOKEN` | No | — | Secret for the `POST /monitoring/run` endpoint |
+| `MONITORING_ENABLED` | No | `false` | Start the in-process daily monitoring scheduler |
+| `MONITORING_CRON` | No | `0 9 * * *` | Cron expression for the scheduler |
 
 *The API works without an OpenAI key but won't generate natural language explanations.
 Translation requires all three Azure Translator variables. Without them, text is returned in English.
+
+## Monitoring & Email Alerts
+
+With `MONITORING_ENABLED=true` the server runs a daily change-detection sweep
+(APScheduler, `MONITORING_CRON`) that re-analyzes holdings and emails a digest of
+adverse changes (state downgrades, health drops, price crossing its 200-day
+average, etc.) via Mailgun. Run a single scheduler process (`uvicorn --workers 1`)
+so alerts don't double-send.
+
+Trigger a sweep on demand (e.g. from your own cron):
+
+```bash
+curl -X POST http://localhost:8000/monitoring/run \
+  -H "X-Monitoring-Token: $MONITORING_TOKEN"
+```
+
+Or run it once from the CLI: `python -m insight_engine.jobs.monitoring`.
+
+Users opt out with `PATCH /users/me -d '{"alerts_enabled": false}'`. The first
+sweep of each holding establishes a baseline and sends nothing.

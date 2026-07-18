@@ -88,7 +88,20 @@ Also added the `include_alternatives` request flag to skip alternatives entirely
 (Deferred: sector-screen discovery for roles without a clean holdings ETF — the
 data source there is still unresolved.)
 
-## P4 — Active monitoring & email alerts ("the watchdog")
+## P4 — Active monitoring & email alerts ("the watchdog") ✅ DONE (2026-07-17)
+
+Implemented: in-process APScheduler (opt-in via `MONITORING_ENABLED`, cron
+`MONITORING_CRON`) + `POST /monitoring/run` (guarded by `MONITORING_TOKEN`) +
+`python -m insight_engine.jobs.monitoring`. Deterministic change detection
+(`rules/change_rules.py`) compares each holding to its last stored insight and
+detects state downgrades, health drops ≥15, SMA-200 / Parabolic-SAR bearish
+crosses, drawdown-tolerance breaches, and new news flags. One Mailgun digest per
+user with changes; per-user opt-out via `alerts_enabled`; baseline run sends
+nothing. No AI on this path. Persisted `news_flags` on insights to support news
+transitions. **Deferred (future):** LLM news-relevance filtering, per-event dedup
+beyond consecutive-run comparison, positive-recovery alerts.
+
+<details><summary>Original P4 notes</summary>
 
 **Why:** the highest-value feature — "I can't watch this all the time" is exactly
 the problem to solve — but it depends on P1 (history/state memory) and gets much
@@ -114,9 +127,10 @@ better with P2 (weights tell it which positions matter most).
 - **Dedup/state tracking:** record what was last notified per (user, ticker,
   trigger type) so the same event doesn't re-alert daily; re-notify only on
   further change.
-- Job cadence: start daily (extend `jobs/daily_analysis.py`), move to intraday
-  later if needed. MVP explicitly excluded real-time alerts — this deliberately
-  relaxes that.
+- Job cadence: start daily, move to intraday later if needed. MVP explicitly
+  excluded real-time alerts — this deliberately relaxes that.
+
+</details>
 
 ## P4b — Wire the investment objective (goal) into deterministic scoring
 
@@ -158,7 +172,7 @@ scores and alternative suggestions.
 | P2 position-aware analysis | P1 | medium | ✅ done |
 | P3 benchmark map | — (parallel-friendly) | small | ✅ done |
 | P3b dynamic candidate discovery | — | medium | ✅ done |
-| P4 watchdog + email | P1, better with P2 | large | open |
+| P4 watchdog + email | P1, better with P2 | large | ✅ done |
 | P4b goal-aware scoring | — (parallel-friendly) | medium | open |
 | P5 hardening | — | small, continuous | ongoing |
 

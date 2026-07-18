@@ -73,7 +73,7 @@ insight_engine/
 ├── services/     # Orchestration (analysis, alternatives, metrics, translation)
 ├── ai/           # LLM prompts and handlers (interpretation only)
 ├── adapters/     # External integrations (Yahoo Finance, OpenAI, Azure)
-├── jobs/         # Scheduled tasks (daily analysis jobs)
+├── jobs/         # CLI entrypoints (monitoring sweep)
 config/           # Static config (candidate_universe.json, benchmarks.json, discovery_etfs.json)
 tests/            # Unit tests (metrics, rules, endpoints, alternatives)
 ```
@@ -123,6 +123,7 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 - **Portfolio:** One per user. `POST /portfolio/analyze` analyzes stored positions (or syncs+analyzes a provided `assets` list — which **replaces** stored lots). Stores overall risk (value-weighted), summary, total value, and concentration. Insights are appended, never deleted — history via `GET /insights`.
 - **Insight:** The minimum unit of value—includes asset state, scenario, horizon, risks, explanation, plus optional scores, alternatives, and position context (weight, market value, unrealized gain/loss).
 - **Concentration:** `concentrated` when a position > 25% of value or a role > 40% combined; else `diversified`.
+- **Monitoring (watchdog):** `POST /monitoring/run` (or the in-process APScheduler when `MONITORING_ENABLED=true`, or `python -m insight_engine.jobs.monitoring`) re-analyzes holdings, detects adverse changes vs. the last stored insight (`rules/change_rules.py`), and emails a deterministic digest via Mailgun (`adapters/mailgun_email.py`). Authorized by `MONITORING_TOKEN`; per-user opt-out via `alerts_enabled`. No AI on this path.
 - **Scenario:** Narrative of likely behavior without price predictions or timing.
 - **Portfolio Role:** Classification of an asset's function (US_LARGE_CAP_CORE, GROWTH_TECH, DIVIDEND_INCOME, DEFENSIVE, EMERGING_MARKETS, BONDS_STABILITY). Used for candidate discovery.
 - **Health Score / Profile Fit Score:** Deterministic 0–100 scores measuring asset quality and user-profile alignment respectively.
