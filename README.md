@@ -73,6 +73,7 @@ insight_engine/
 ```
 
 CI (`.github/workflows/ci.yml`) runs `ruff check` + `pytest` on every push and PR.
+Deploys are tag-based (push a `v*.*.*` tag → staging); see [DEPLOY.md](DEPLOY.md).
 
 ## MVP Constraints
 
