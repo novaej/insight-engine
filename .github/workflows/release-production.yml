@@ -1,0 +1,54 @@
+name: Release to Production
+
+# DISABLED — the production Render service, branch, and secrets do not exist yet.
+#
+# Promotes a published release tag to the `production` branch by fast-forwarding
+# it to the tag the release was published from. Pushing `production` then
+# triggers deploy-production.yml.
+#
+# Publishing a GitHub Release (from a tag already validated in staging) is the
+# deliberate approval gate between staging and production: "staging confirmed it,
+# ship to production."
+#
+# To enable once production is provisioned:
+#   1. Uncomment the `release:` trigger below
+#   2. Remove the `if: false` guard on the `promote` job
+#   3. Create a `production` branch and set the `production` environment secrets
+on:
+  # release:
+  #   types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: production
+    if: false  # remove this line to re-enable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PUSH_TOKEN }}
+
+      - name: Verify the release tag matches pyproject version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          TAG="${RELEASE_TAG#v}"
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed -E 's/version *= *"([^"]+)"/\1/')
+          echo "tag=$TAG pyproject=$VERSION"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Release tag v$TAG does not match pyproject version $VERSION."
+            exit 1
+          fi
+
+      - name: Fast-forward production to the released tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout production
+          git merge --ff-only "${{ github.event.release.tag_name }}"
+          git push origin production

@@ -1,9 +1,17 @@
 import logging
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI
+
+try:
+    # Single source of truth: the version lives in pyproject.toml.
+    __version__ = _pkg_version("insight-engine")
+except PackageNotFoundError:  # running from a raw checkout without an install
+    __version__ = "0.0.0"
 
 from insight_engine.api.asset_routes import router as asset_router
 from insight_engine.api.insight_routes import router as insight_router
@@ -54,7 +62,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="InsightEngine",
     description="Educational investment portfolio analysis API",
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
 )
 

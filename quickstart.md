@@ -145,6 +145,15 @@ curl -X DELETE http://localhost:8000/portfolio/positions/1 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+Re-analyze a **single** stored holding (cheaper than the whole portfolio) and
+append it to history:
+
+```bash
+curl -X POST http://localhost:8000/portfolio/positions/AAPL/analyze \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"use_ai": true}'
+```
+
 ## Insight History
 
 Every analysis run is kept, so you can track how an asset's state evolves.

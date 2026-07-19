@@ -1,0 +1,41 @@
+name: Release to Staging
+
+# Promotes a tagged commit on `main` to the `staging` branch by fast-forwarding
+# it to the tag. Pushing `staging` then triggers deploy-staging.yml.
+#
+# A tag means: "build this, validate it in staging." Merging a PR to main does
+# NOT deploy — only tagging does.
+#
+# Requires a `RELEASE_PUSH_TOKEN` secret (a PAT with contents:write) so the push
+# to `staging` can trigger deploy-staging.yml (the default GITHUB_TOKEN can't).
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PUSH_TOKEN }}
+
+      - name: Verify the tag matches pyproject version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed -E 's/version *= *"([^"]+)"/\1/')
+          echo "tag=$TAG pyproject=$VERSION"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag v$TAG does not match pyproject version $VERSION. Bump pyproject.toml first."
+            exit 1
+          fi
+
+      - name: Fast-forward staging to this tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout staging
+          git merge --ff-only "${{ github.ref_name }}"
+          git push origin staging

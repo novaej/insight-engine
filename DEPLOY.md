@@ -62,39 +62,89 @@ Use the **same value** in two places so the cron's header matches the API:
 Rotate it by generating a new value and updating both. If it's left unset, the
 `/monitoring/run` endpoint returns 503 and the monitoring cron can't run.
 
-## 3. GitHub Actions
+## 3. GitHub Actions — tag-based deploys
 
-Three workflows:
+Merging a PR to `main` **does not deploy** — it only runs CI. Deploys are driven
+by **git tags**, so you control when staging ships.
 
-| Workflow | Trigger | Needs | Purpose |
-|----------|---------|-------|---------|
-| [ci.yml](.github/workflows/ci.yml) | push to main, PRs | — | ruff + pytest |
-| [deploy.yml](.github/workflows/deploy.yml) | after CI succeeds on main | secret `RENDER_DEPLOY_HOOK_URL` | trigger a Render deploy |
-| [monitoring.yml](.github/workflows/monitoring.yml) | daily 09:00 UTC (+ manual) | var `APP_URL`, secret `MONITORING_TOKEN` | wake the service, run the sweep |
+**Branch, PR & tag naming** (also in `CLAUDE.md`): work branches are cut from
+`main` — `feature/<slug>`, `fix/<slug>`, `chore/<slug>` (release-prep:
+`chore/release-<version>`), `hotfix/<slug>` (off `production`) — and merged via PR
+with a Conventional-Commit title (`feat:`, `fix:`, `chore(release): prepare
+<version>`). `main`/`staging`/`production` are automation-owned. Tags are
+`vMAJOR.MINOR.PATCH` and must equal `pyproject.toml`'s version.
 
-Set these in GitHub → **Settings → Secrets and variables → Actions**:
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| [ci.yml](.github/workflows/ci.yml) | push to main, PRs | ruff + pytest |
+| [release-staging.yml](.github/workflows/release-staging.yml) | push a tag `v*.*.*` | fast-forwards the `staging` branch to the tag |
+| [deploy-staging.yml](.github/workflows/deploy-staging.yml) | push to `staging` | triggers the Render **staging** deploy |
+| [monitoring.yml](.github/workflows/monitoring.yml) | daily 09:00 UTC (+ manual) | wake the service, run the sweep |
+| release-production.yml / deploy-production.yml | — | **disabled** scaffolds for later (see below) |
 
-- **Secret `RENDER_DEPLOY_HOOK_URL`** — Render dashboard → the service →
-  **Settings → Deploy Hook** → copy the URL. Deploy stays off on push
-  (`autoDeploy: false`), so this GitHub-Actions-after-CI path is the only deploy
-  trigger.
-- **Variable `APP_URL`** — your Render URL, e.g. `https://insight-engine.onrender.com`
-  (no trailing slash).
-- **Secret `MONITORING_TOKEN`** — the **same value** you set in Render, so the
-  cron's `X-Monitoring-Token` header matches.
+**The staging flow:**
+```
+merge PRs to main  →  CI runs (no deploy)
+git tag v0.1.0 && git push origin v0.1.0
+      ↓ release-staging.yml fast-forwards the `staging` branch to the tag
+      ↓ deploy-staging.yml fires the Render deploy hook
+staging is live
+```
 
-After that: push to `main` → CI runs → if green → Render deploys. The monitoring
-cron runs daily, waking the service (polls `/health` for up to ~5 min) before
-POSTing `/monitoring/run`.
+**One-time setup:**
+1. Create the `staging` branch from `main`: `git switch -c staging main && git push -u origin staging`.
+2. In Render, the blueprint creates **`insight-engine-staging`** tracking the
+   `staging` branch. Copy its deploy hook (service → **Settings → Deploy Hook**).
+3. Create a GitHub **environment** named `staging`
+   (**Settings → Environments → New environment**) and add secret
+   **`RENDER_DEPLOY_HOOK_URL`** to it.
+4. Add repo-level (**Settings → Secrets and variables → Actions**):
+   - Secret **`RELEASE_PUSH_TOKEN`** — a fine-grained PAT with **Contents: write**
+     on this repo, so `release-staging` can push to `staging` and trigger the
+     deploy (the default `GITHUB_TOKEN` can't chain workflows).
+   - Variable **`APP_URL`** — your staging Render URL, e.g.
+     `https://insight-engine-staging.onrender.com` (no trailing slash).
+   - Secret **`MONITORING_TOKEN`** — the **same value** you set in Render.
 
-Trigger a sweep manually anytime: Actions tab → **Monitoring** → **Run workflow**.
+After that, tag a known-good `main` commit to ship it to staging. Trigger a
+monitoring sweep manually anytime: Actions → **Monitoring** → **Run workflow**.
+
+### Cutting a release (versioning)
+
+The single source of version truth is **`pyproject.toml`** (`[project] version`).
+`insight_engine/main.py` reads it via package metadata, so `/docs` always matches;
+don't hardcode a version anywhere else.
+
+The **tag must equal the pyproject version** — `release-staging.yml` fails the
+release otherwise. To cut `x.y.z`:
+
+1. Bump `version` in `pyproject.toml` to `x.y.z`.
+2. In `CHANGELOG.md`, move the `[Unreleased]` items under a new
+   `[x.y.z] - YYYY-MM-DD` heading.
+3. Commit (via a PR to `main`), then tag and push:
+   ```bash
+   git tag vx.y.z && git push origin vx.y.z
+   ```
+
+The tag (`vx.y.z`) drops its leading `v` and must match pyproject's `x.y.z`.
+
+### Enabling production later
+
+`release-production.yml` and `deploy-production.yml` are pre-written but disabled.
+When you provision a production service:
+1. Create a `production` branch and an `insight-engine-prod` Render service (its
+   own env vars + deploy hook).
+2. Create a GitHub `production` environment with its own `RENDER_DEPLOY_HOOK_URL`.
+3. In each production workflow: uncomment the trigger and remove the `if: false`.
+
+Then the promotion gate is: **publish a GitHub Release** from a tag that staging
+validated → production fast-forwards and deploys.
 
 ## Notes
 
 - `MONITORING_CRON` in the app is unused on Render (the scheduler is off); change
-  the schedule in `monitoring.yml`'s `cron:` instead. It's **UTC**.
+  the schedule in `monitoring.yml`'s `cron:` instead. It's **UTC**. `APP_URL`
+  currently points at staging, so the watchdog runs against staging until
+  production exists.
 - No CORS middleware is configured. If a browser frontend (Vestio) calls this API,
   add `fastapi.middleware.cors.CORSMiddleware` with your frontend origin.
-- Prefer Render's own auto-deploy instead of the CI-gated hook? Set
-  `autoDeploy: true` in `render.yaml`, connect the repo in Render, and delete
-  `deploy.yml`. You lose the "don't deploy unless tests pass" guarantee.

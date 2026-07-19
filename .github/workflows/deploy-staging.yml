@@ -1,0 +1,19 @@
+name: Deploy Staging
+
+# Triggered by a push to `staging` (done by release-staging.yml after a tag).
+# Secrets come from the `staging` GitHub environment.
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: true
+    steps:
+      - name: Trigger Render deploy
+        run: curl -s --fail -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

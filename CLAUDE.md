@@ -146,13 +146,27 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 - `calculations.md` – Plain-language explanation and formula for every metric/indicator (SMA, Parabolic SAR, volatility, drawdown, P/E benchmark, fundamentals, market context)
 - `api_reference.md` – Endpoint summary: auth rules, request/response shapes, error conventions
 - `domain_language.md` – Terminology definitions used consistently throughout the system
-- `mvp_scope.md` – MVP boundaries, assumptions, and success criteria
 - `architect_prompt.md` – Architectural specification and naming conventions
-- `DEPLOY.md` – Deployment guide (Render + Neon Postgres, GitHub Actions CI/CD + monitoring cron)
+- `ARCHITECTURE.md` – Code-path walkthrough: layers, the analyze pipeline, monitoring, ports/adapters, data model
+- `DEPLOY.md` – Deployment guide (Render + Neon Postgres, tag-based staging deploys, monitoring cron)
+- `GUIDE.md` – Everyday usage workflow (setup, daily watchdog, manual AI analyze, buy/sell, single-asset re-analyze)
+- `next_steps.md` – Post-0.1.0 nice-to-haves and gaps (CORS, production enablement, analysis enhancements)
 
 ## Naming Conventions
 
+### Code
 - Python modules: lowercase with underscores (`portfolio_analysis.py`)
 - Pydantic schemas: `schemas.py` or grouped by domain (`asset_schemas.py`)
 - Rules: `valuation_rules.py`, `trend_rules.py`
 - AI prompts: `prompts.py` or `asset_prompts.py`
+
+### Git — branches, PRs, tags
+- **Work branches** are cut from `main` and merged back via PR:
+  `feature/<slug>`, `fix/<slug>`, `chore/<slug>` (release-prep: `chore/release-<version>`),
+  `hotfix/<slug>` (branched off `production`).
+- **`main`, `staging`, `production`** are long-lived and **automation-owned** —
+  never push to them directly; the release workflows fast-forward them.
+- **PR titles** follow Conventional Commits: `feat: …`, `fix: …`,
+  `chore(release): prepare <version>`, etc. — matching the branch's prefix.
+- **Tags** are semantic `vMAJOR.MINOR.PATCH` and must equal `pyproject.toml`'s
+  `version` (the release workflow enforces this). See `DEPLOY.md` for the flow.
