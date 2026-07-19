@@ -10,8 +10,13 @@ Deploys are tag-based: to cut a release, move the `[Unreleased]` items under a n
 
 ## [Unreleased]
 
+_Nothing yet — changes land here until the next tagged release._
+
+## [0.1.0] - 2026-07-19
+
 Initial backend MVP — the full analysis engine, persistence, monitoring, and
-deployment pipeline. Highlights:
+deployment pipeline. Tagged for staging; promoted to production later via a
+published GitHub Release. Highlights:
 
 ### Added
 - **Accounts & auth** — email/password registration, bearer token issued on

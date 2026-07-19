@@ -9,7 +9,7 @@ Use the following documents as reference guides to ensure all design decisions a
 
 1. `business_rules.md` – Contains all business rules: how to classify assets, assess risk, determine horizon, final state, and propose alternatives. 
 2. `domain_language.md` – Contains terminology, definitions, and user-facing language for describing states, risks, and scenarios. 
-3. `mvp_scope.md` – Contains the MVP scope, objectives, limits (1 user, 10–20 assets), endpoints, tech stack, and feature boundaries. 
+3. `ARCHITECTURE.md` – Code-path walkthrough of the layers, the analyze pipeline, monitoring, and the data model. 
 
 ---
 

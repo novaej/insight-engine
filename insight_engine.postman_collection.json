@@ -154,6 +154,22 @@
             "url": "{{base_url}}/portfolio/positions/{{position_id}}",
             "description": "Insight history for the ticker is kept."
           }
+        },
+        {
+          "name": "Analyze one position",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/portfolio/positions/{{ticker}}/analyze",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"use_ai\": true,\n  \"include_alternatives\": true,\n  \"language\": \"{{language}}\"\n}"
+            },
+            "description": "Re-analyze a single stored holding (by {{ticker}}) with the saved profile and append it to history. Cheaper than the full portfolio analyze when you only want one asset. Omits portfolio weight/concentration (use the full analyze for those). 404 if you don't hold the ticker."
+          }
         }
       ]
     },
