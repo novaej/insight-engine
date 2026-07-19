@@ -1,6 +1,13 @@
 import os
 
+# Provide dummy values for required settings so the suite runs without a .env
+# (e.g. in CI). External providers are mocked, so these are never used for real.
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
+os.environ.setdefault("OPENAI_MODEL", "gpt-4o-mini")
+os.environ.setdefault("AZURE_TRANSLATOR_KEY", "")
+os.environ.setdefault("AZURE_TRANSLATOR_ENDPOINT", "")
+os.environ.setdefault("AZURE_TRANSLATOR_REGION", "")
 
 import numpy as np
 import pandas as pd

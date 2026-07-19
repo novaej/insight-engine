@@ -1,4 +1,3 @@
-import pytest
 
 from insight_engine.domain.entities import DimensionResults, MetricsSummary, UserProfile
 from insight_engine.domain.enums import (

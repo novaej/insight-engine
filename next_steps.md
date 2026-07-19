@@ -143,17 +143,25 @@ fixed a latent bug: yfinance now reports `dividendYield` as a percent, so role
 classification (and the new income component) normalize it to a fraction via
 `normalize_dividend_yield`. `dividend_yield` is now a surfaced metric.
 
-## P5 — Hardening & cleanup (ongoing, fits between steps)
+## P5 — Hardening & cleanup ✅ DONE (2026-07-18)
 
-- Fix the 42 pre-existing ruff lint errors; enforce lint in CI.
-- Remove `requirements.txt` / `requirements-dev.txt` if `pyproject.toml [dev]` is
-  the source of truth (docs already point only to pyproject).
-- Basic auth (even a static API key per user) before anything is exposed beyond
-  localhost.
-- Rate limiting / retry-with-backoff on Yahoo Finance calls now that fetches run
-  concurrently.
-- Integration test that exercises the full portfolio analyze flow with mocked
-  providers, including the batched AI path.
+- ✅ Lint clean + enforced: `ruff check .` passes (Alembic migrations excluded;
+  tests exempt from E501); GitHub Actions CI (`.github/workflows/ci.yml`) runs
+  ruff + pytest on push/PR. Tests are self-contained (conftest sets dummy
+  required settings) so CI needs no `.env`.
+- ✅ Removed `requirements.txt` / `requirements-dev.txt`; `pyproject.toml [dev]`
+  is the single source of truth.
+- ✅ Retry-with-backoff on Yahoo fetches (`adapters/retry.py` wraps the provider)
+  for resilience under concurrent analysis.
+- ✅ Integration test (`tests/test_integration.py`) exercises the real analyze
+  pipeline (metrics → rules → synthesis → scoring → concentration → persistence)
+  with only the market-data provider mocked.
+- Auth was already delivered in P1 (email/password + bearer tokens), so the
+  "basic auth" bullet is obsolete.
+
+**Still open (nice-to-have, not scheduled):** rate-limiting per client;
+exercising the batched AI path in an integration test (currently AI is always
+mocked to avoid spend).
 
 ---
 
@@ -167,7 +175,7 @@ classification (and the new income component) normalize it to a fraction via
 | P3b dynamic candidate discovery | — | medium | ✅ done |
 | P4 watchdog + email | P1, better with P2 | large | ✅ done |
 | P4b goal-aware scoring | — (parallel-friendly) | medium | ✅ done |
-| P5 hardening | — | small, continuous | ongoing |
+| P5 hardening | — | small, continuous | ✅ done |
 
-Remaining work is P3b, P4, P4b, and P5 — all independent of each other. P4
-(the watchdog) is the highest-value remaining feature.
+All roadmap items (P1–P5) are complete as of 2026-07-18. Remaining ideas are the
+"still open" nice-to-haves noted under P3b, P4, and P5 — none scheduled.

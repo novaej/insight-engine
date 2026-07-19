@@ -2,7 +2,10 @@ import pytest
 
 from insight_engine.domain.entities import AssetScores, NewsFlags, UserProfile
 from insight_engine.domain.enums import InvestmentObjective, RiskProfile
-from insight_engine.rules.alternative_rules import filter_and_rank_candidates, should_trigger_alternatives
+from insight_engine.rules.alternative_rules import (
+    filter_and_rank_candidates,
+    should_trigger_alternatives,
+)
 
 
 class TestShouldTriggerAlternatives:
