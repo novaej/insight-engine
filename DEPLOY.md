@@ -102,6 +102,25 @@ staging is live
 After that, tag a known-good `main` commit to ship it to staging. Trigger a
 monitoring sweep manually anytime: Actions → **Monitoring** → **Run workflow**.
 
+### Cutting a release (versioning)
+
+The single source of version truth is **`pyproject.toml`** (`[project] version`).
+`insight_engine/main.py` reads it via package metadata, so `/docs` always matches;
+don't hardcode a version anywhere else.
+
+The **tag must equal the pyproject version** — `release-staging.yml` fails the
+release otherwise. To cut `x.y.z`:
+
+1. Bump `version` in `pyproject.toml` to `x.y.z`.
+2. In `CHANGELOG.md`, move the `[Unreleased]` items under a new
+   `[x.y.z] - YYYY-MM-DD` heading.
+3. Commit (via a PR to `main`), then tag and push:
+   ```bash
+   git tag vx.y.z && git push origin vx.y.z
+   ```
+
+The tag (`vx.y.z`) drops its leading `v` and must match pyproject's `x.y.z`.
+
 ### Enabling production later
 
 `release-production.yml` and `deploy-production.yml` are pre-written but disabled.

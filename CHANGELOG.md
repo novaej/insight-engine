@@ -4,9 +4,10 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Deploys are tag-based: to cut a release, move the `[Unreleased]` items under a new
-`[x.y.z] - YYYY-MM-DD` heading, then `git tag vX.Y.Z && git push origin vX.Y.Z`
-(which ships it to staging — see `DEPLOY.md`).
+Deploys are tag-based. To cut a release: bump `version` in `pyproject.toml`, move
+the `[Unreleased]` items under a new `[x.y.z] - YYYY-MM-DD` heading, then
+`git tag vX.Y.Z && git push origin vX.Y.Z` (ships to staging; the tag must match
+the pyproject version or the release fails — see `DEPLOY.md`).
 
 ## [Unreleased]
 

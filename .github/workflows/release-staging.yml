@@ -22,6 +22,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PUSH_TOKEN }}
 
+      - name: Verify the tag matches pyproject version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed -E 's/version *= *"([^"]+)"/\1/')
+          echo "tag=$TAG pyproject=$VERSION"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag v$TAG does not match pyproject version $VERSION. Bump pyproject.toml first."
+            exit 1
+          fi
+
       - name: Fast-forward staging to this tag
         run: |
           git config user.name "github-actions[bot]"
