@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from insight_engine.adapters.caching import CachingMarketDataProvider
-from insight_engine.ai.handlers import generate_batch_explanations
+from insight_engine.ai.handlers import generate_batch_explanations, generate_explanation
 from insight_engine.api.asset_routes import _build_insight_response
 from insight_engine.api.deps import get_current_user, get_user_portfolio
 from insight_engine.api.schemas import (
@@ -21,6 +21,7 @@ from insight_engine.api.schemas import (
     PortfolioResponse,
     PortfolioSummaryResponse,
     PortfolioUpdateRequest,
+    PositionAnalyzeRequest,
     PositionContextResponse,
     PositionResponse,
     UserProfileRequest,
@@ -30,6 +31,7 @@ from insight_engine.domain.entities import (
     AlternativesResult,
     ConcentrationResult,
     Insight,
+    PositionContext,
     UserProfile,
 )
 from insight_engine.domain.enums import (
@@ -413,6 +415,106 @@ async def update_portfolio_endpoint(
         total_value=total_value,
         concentration=_concentration_to_response(concentration),
     )
+
+
+@router.post("/positions/{ticker}/analyze", response_model=InsightResponse)
+async def analyze_position_endpoint(
+    ticker: str,
+    request: PositionAnalyzeRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Re-analyze a single stored holding and append it to the portfolio history.
+
+    Uses the portfolio's saved profile. Market value and unrealized gain come
+    from the stored lots; portfolio weight and concentration are omitted (they
+    require valuing every holding — use POST /portfolio/analyze for those).
+    """
+    portfolio = await get_user_portfolio(user, session)
+    if portfolio is None:
+        raise HTTPException(status_code=404, detail="No portfolio found")
+
+    ticker_up = ticker.upper()
+    lots = (
+        await session.execute(
+            select(Position).where(
+                Position.portfolio_id == portfolio.id, Position.ticker == ticker_up
+            )
+        )
+    ).scalars().all()
+    if not lots:
+        raise HTTPException(status_code=404, detail=f"Position {ticker_up} not found")
+
+    asset = _aggregate_lots(
+        [
+            PortfolioAsset(
+                ticker=p.ticker,
+                quantity=p.quantity,
+                purchase_price=p.purchase_price,
+                purchase_date=p.purchase_date,
+            )
+            for p in lots
+        ]
+    )[0]
+
+    held_tickers = {
+        t.upper()
+        for t in (
+            await session.execute(
+                select(Position.ticker)
+                .where(Position.portfolio_id == portfolio.id)
+                .distinct()
+            )
+        ).scalars().all()
+    }
+
+    profile_data = UserProfileRequest(**portfolio.user_profile)
+    user_profile = UserProfile(
+        risk=profile_data.risk,
+        horizon=profile_data.horizon,
+        objective=profile_data.goal,
+    )
+    provider = CachingMarketDataProvider(get_market_data_provider())
+
+    def _analyze() -> Insight:
+        insight, info = analyze_asset(asset.ticker, user_profile, provider)
+        alt_ctx = prepare_alternatives_context(insight, info, user_profile, provider)
+        if not request.include_alternatives:
+            insight.alternatives = AlternativesResult(triggered=False)
+            alt_ctx = None
+
+        price = insight.metrics.current_price
+        insight.position = PositionContext(
+            quantity=asset.quantity,
+            market_value=asset.quantity * price if price is not None else None,
+            avg_purchase_price=asset.purchase_price,
+            unrealized_gain_pct=(
+                (price - asset.purchase_price) / asset.purchase_price
+                if price is not None and asset.purchase_price
+                else None
+            ),
+        )
+
+        if request.use_ai:
+            generate_explanation(insight, user_profile, alternatives_context=alt_ctx)
+            if request.language:
+                translate_insight(insight, request.language)
+        if alt_ctx:
+            resolve_alternatives(
+                insight, user_profile, provider, alt_ctx, request.use_ai, held_tickers
+            )
+        return insight
+
+    try:
+        insight = await asyncio.to_thread(_analyze)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Analysis failed for {ticker_up}: {str(e)}"
+        )
+
+    save_insights(session, portfolio.id, [insight])
+    await session.commit()
+    return _build_insight_response(insight)
 
 
 def _record_to_response(record: InsightRecord) -> InsightResponse:

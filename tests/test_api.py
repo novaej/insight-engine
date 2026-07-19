@@ -458,3 +458,57 @@ def test_patch_alerts_enabled():
     response = client.patch("/users/me", json={"alerts_enabled": False})
     assert response.status_code == 200
     assert response.json()["alerts_enabled"] is False
+
+
+def test_analyze_single_position_not_found():
+    # Default mock session returns no portfolio → 404
+    response = client.post("/portfolio/positions/AAPL/analyze", json={"use_ai": False})
+    assert response.status_code == 404
+
+
+def test_analyze_single_position_happy_path():
+    portfolio = MagicMock()
+    portfolio.id = 1
+    portfolio.user_id = 1
+    portfolio.user_profile = {"risk": "moderate", "horizon": "long", "goal": "growth"}
+    lot = MagicMock()
+    lot.ticker = "AAPL"
+    lot.quantity = 2.0
+    lot.purchase_price = 180.0
+    lot.purchase_date = None
+
+    async def _sess():
+        s = MagicMock()
+        s.commit = AsyncMock()
+        s.add = MagicMock()
+        r_pf = MagicMock()
+        r_pf.scalar_one_or_none.return_value = portfolio
+        r_lots = MagicMock()
+        r_lots.scalars.return_value.all.return_value = [lot]
+        r_held = MagicMock()
+        r_held.scalars.return_value.all.return_value = ["AAPL"]
+        s.execute = AsyncMock(side_effect=[r_pf, r_lots, r_held])
+        yield s
+
+    app.dependency_overrides[get_session] = _sess
+    try:
+        with patch(
+            "insight_engine.api.portfolio_routes.analyze_asset",
+            return_value=(_mock_insight("AAPL"), {"quoteType": "EQUITY"}),
+        ), patch(
+            "insight_engine.api.portfolio_routes.prepare_alternatives_context",
+            return_value=None,
+        ), patch("insight_engine.api.portfolio_routes.get_market_data_provider"):
+            response = client.post(
+                "/portfolio/positions/AAPL/analyze",
+                json={"use_ai": False, "include_alternatives": False},
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ticker"] == "AAPL"
+        # position context computed from the stored lot (qty 2 @ current 150)
+        assert data["position"]["quantity"] == 2.0
+        assert data["position"]["market_value"] == 300.0
+        assert data["position"]["weight"] is None  # single-asset run omits weight
+    finally:
+        app.dependency_overrides[get_session] = _mock_session

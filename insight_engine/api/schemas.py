@@ -182,6 +182,15 @@ class PositionUpdateRequest(BaseModel):
     purchase_date: datetime.date | None = None
 
 
+class PositionAnalyzeRequest(BaseModel):
+    use_ai: bool = True
+    include_alternatives: bool = True
+    language: str | None = Field(
+        None, min_length=2, max_length=10,
+        description="Target language code (e.g. 'es', 'fr', 'pt')",
+    )
+
+
 class PortfolioRequest(BaseModel):
     user_profile: UserProfileRequest
     assets: list[PortfolioAsset] | None = Field(

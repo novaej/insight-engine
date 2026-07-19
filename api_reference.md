@@ -23,6 +23,7 @@ password change.
 | POST | `/portfolio/positions` | ✓ | Add a lot |
 | PATCH | `/portfolio/positions/{id}` | ✓ | Edit a lot |
 | DELETE | `/portfolio/positions/{id}` | ✓ | Remove a lot |
+| POST | `/portfolio/positions/{ticker}/analyze` | ✓ | Re-analyze one stored holding |
 | POST | `/portfolio/analyze` | ✓ | Analyze portfolio (the main event) |
 | GET | `/portfolio` | ✓ | Stored portfolio + latest insights |
 | PUT | `/portfolio` | ✓ | Replace assets and re-analyze |
@@ -70,6 +71,16 @@ Partial update of a lot: `quantity`, `purchase_price`, `purchase_date`.
 
 ### DELETE /portfolio/positions/{id}
 Removes a lot. The ticker's insight history is kept. 204.
+
+### POST /portfolio/positions/{ticker}/analyze
+Re-analyzes a **single** stored holding (by ticker) using the portfolio's saved
+profile, and appends the insight to history — so it shows in `GET /portfolio`,
+`GET /insights`, and the watchdog compares against it. Body (all optional):
+`use_ai`, `include_alternatives`, `language`. Computes that position's market
+value and unrealized gain from your lots; **portfolio weight and concentration
+are omitted** (those need every holding — use `POST /portfolio/analyze`). 404 if
+you don't hold the ticker. Cheaper than re-running the whole portfolio when you
+only want to refresh one asset.
 
 ## Portfolio analysis
 
