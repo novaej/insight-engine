@@ -154,7 +154,19 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 
 ## Naming Conventions
 
+### Code
 - Python modules: lowercase with underscores (`portfolio_analysis.py`)
 - Pydantic schemas: `schemas.py` or grouped by domain (`asset_schemas.py`)
 - Rules: `valuation_rules.py`, `trend_rules.py`
 - AI prompts: `prompts.py` or `asset_prompts.py`
+
+### Git — branches, PRs, tags
+- **Work branches** are cut from `main` and merged back via PR:
+  `feature/<slug>`, `fix/<slug>`, `chore/<slug>` (release-prep: `chore/release-<version>`),
+  `hotfix/<slug>` (branched off `production`).
+- **`main`, `staging`, `production`** are long-lived and **automation-owned** —
+  never push to them directly; the release workflows fast-forward them.
+- **PR titles** follow Conventional Commits: `feat: …`, `fix: …`,
+  `chore(release): prepare <version>`, etc. — matching the branch's prefix.
+- **Tags** are semantic `vMAJOR.MINOR.PATCH` and must equal `pyproject.toml`'s
+  `version` (the release workflow enforces this). See `DEPLOY.md` for the flow.

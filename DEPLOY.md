@@ -67,6 +67,13 @@ Rotate it by generating a new value and updating both. If it's left unset, the
 Merging a PR to `main` **does not deploy** — it only runs CI. Deploys are driven
 by **git tags**, so you control when staging ships.
 
+**Branch, PR & tag naming** (also in `CLAUDE.md`): work branches are cut from
+`main` — `feature/<slug>`, `fix/<slug>`, `chore/<slug>` (release-prep:
+`chore/release-<version>`), `hotfix/<slug>` (off `production`) — and merged via PR
+with a Conventional-Commit title (`feat:`, `fix:`, `chore(release): prepare
+<version>`). `main`/`staging`/`production` are automation-owned. Tags are
+`vMAJOR.MINOR.PATCH` and must equal `pyproject.toml`'s version.
+
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | [ci.yml](.github/workflows/ci.yml) | push to main, PRs | ruff + pytest |
