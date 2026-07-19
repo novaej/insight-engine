@@ -149,6 +149,7 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 - `mvp_scope.md` – MVP boundaries, assumptions, and success criteria
 - `architect_prompt.md` – Architectural specification and naming conventions
 - `DEPLOY.md` – Deployment guide (Render + Neon Postgres, tag-based staging deploys, monitoring cron)
+- `GUIDE.md` – Everyday usage workflow (setup, daily watchdog, manual AI analyze, buy/sell, single-asset re-analyze)
 
 ## Naming Conventions
 
