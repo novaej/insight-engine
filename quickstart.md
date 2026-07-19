@@ -303,7 +303,7 @@ alembic upgrade head
 | `MAILGUN_API_KEY` | No | — | Mailgun API key for alert emails |
 | `MAILGUN_DOMAIN` | No | — | Mailgun sending domain |
 | `MAILGUN_FROM_EMAIL` | No | — | From address for alert emails |
-| `MONITORING_TOKEN` | No | — | Secret for the `POST /monitoring/run` endpoint |
+| `MONITORING_TOKEN` | No | — | Secret guarding `POST /monitoring/run` (any random string, e.g. `openssl rand -hex 24`; unset ⇒ endpoint returns 503) |
 | `MONITORING_ENABLED` | No | `false` | Start the in-process daily monitoring scheduler |
 | `MONITORING_CRON` | No | `0 9 * * *` | Cron expression for the scheduler |
 
