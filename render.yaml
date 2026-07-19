@@ -5,6 +5,7 @@ services:
     name: insight-engine
     runtime: python
     plan: free
+    region: virginia
     buildCommand: pip install -e .
     # Free tier has no pre-deploy hook, so run migrations at start (idempotent).
     startCommand: alembic upgrade head && uvicorn insight_engine.main:app --host 0.0.0.0 --port $PORT
