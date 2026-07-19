@@ -148,7 +148,7 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 - `domain_language.md` – Terminology definitions used consistently throughout the system
 - `mvp_scope.md` – MVP boundaries, assumptions, and success criteria
 - `architect_prompt.md` – Architectural specification and naming conventions
-- `DEPLOY.md` – Deployment guide (Fly.io + Neon Postgres, GitHub Actions CI/CD)
+- `DEPLOY.md` – Deployment guide (Render + Neon Postgres, GitHub Actions CI/CD + monitoring cron)
 
 ## Naming Conventions
 

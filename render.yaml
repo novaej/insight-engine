@@ -1,0 +1,41 @@
+# Render Blueprint. Deploy via the Render dashboard: New → Blueprint → this repo.
+# The database is external (Neon) — its URL is set as a dashboard secret, not here.
+services:
+  - type: web
+    name: insight-engine
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    # Free tier has no pre-deploy hook, so run migrations at start (idempotent).
+    startCommand: alembic upgrade head && uvicorn insight_engine.main:app --host 0.0.0.0 --port $PORT
+    # Deploys are driven by GitHub Actions (after CI) via a deploy hook, not on push.
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      # Free web service sleeps when idle, so the in-process scheduler is off;
+      # monitoring is driven by the GitHub Actions cron (see .github/workflows).
+      - key: MONITORING_ENABLED
+        value: "false"
+      # Required settings that may be blank (translation just no-ops when empty).
+      - key: AZURE_TRANSLATOR_KEY
+        value: ""
+      - key: AZURE_TRANSLATOR_ENDPOINT
+        value: ""
+      - key: AZURE_TRANSLATOR_REGION
+        value: ""
+      # Secrets — set these in the Render dashboard (sync: false keeps them out of git).
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MAILGUN_API_KEY
+        sync: false
+      - key: MAILGUN_DOMAIN
+        sync: false
+      - key: MAILGUN_FROM_EMAIL
+        sync: false
+      - key: MONITORING_TOKEN
+        sync: false

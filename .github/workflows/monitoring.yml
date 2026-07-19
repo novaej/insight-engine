@@ -1,0 +1,34 @@
+name: Monitoring
+
+# Drives the watchdog from outside because the free Render service sleeps when
+# idle (so the in-process scheduler can't be relied on). This one job first wakes
+# the service (polling /health until it responds) and then runs the sweep, so the
+# monitoring request never races a cold start.
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 09:00 UTC daily
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the service (cold start can take ~30-60s)
+        run: |
+          for i in $(seq 1 15); do
+            if curl -fsS --max-time 30 "$APP_URL/health" >/dev/null; then
+              echo "service awake"; exit 0
+            fi
+            echo "waiting for cold start... ($i)"; sleep 20
+          done
+          echo "service did not wake in time"; exit 1
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+
+      - name: Run monitoring sweep
+        run: |
+          curl -fsS --max-time 300 -X POST "$APP_URL/monitoring/run" \
+            -H "X-Monitoring-Token: $MONITORING_TOKEN"
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          MONITORING_TOKEN: ${{ secrets.MONITORING_TOKEN }}

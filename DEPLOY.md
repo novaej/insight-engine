@@ -1,86 +1,80 @@
-# Deployment (Fly.io + Neon)
+# Deployment (Render + Neon)
 
-The API deploys to **Fly.io** (always-on, so the in-process monitoring watchdog
-runs there) with **Neon** free managed Postgres. GitHub Actions deploys on every
-green push to `main`.
+The API deploys to **Render** (free web service) with **Neon** free managed
+Postgres. GitHub Actions gates deploys behind CI and drives the monitoring
+watchdog.
 
-## Prerequisites
-
-- A [Fly.io](https://fly.io) account + `flyctl` installed (`brew install flyctl`)
-- A [Neon](https://neon.tech) account (free Postgres)
-- This repo on GitHub
+Because Render's free web service **sleeps after ~15 min of inactivity**, the
+in-process scheduler is disabled and monitoring is triggered by a scheduled
+GitHub Action that first wakes the service, then runs the sweep.
 
 ## 1. Database — Neon
 
-1. Create a Neon project; it provisions a Postgres database.
-2. Copy the **direct** connection string (the host **without** `-pooler` — the
-   pooled endpoint uses PgBouncer, which breaks asyncpg's prepared statements).
+1. Create a Neon project (provisions Postgres).
+2. Copy the **direct** connection string (host **without** `-pooler` — the pooled
+   endpoint's PgBouncer breaks asyncpg's prepared statements).
 3. Convert it for SQLAlchemy's async driver:
    - scheme `postgresql://` → `postgresql+asyncpg://`
-   - replace `?sslmode=require` with `?ssl=require` (asyncpg doesn't understand
-     `sslmode`)
+   - replace `?sslmode=require` with `?ssl=require`
 
-   Final form:
    ```
    postgresql+asyncpg://USER:PASSWORD@ep-xxx.REGION.aws.neon.tech/DBNAME?ssl=require
    ```
-   This one URL is used by both the app and Alembic migrations.
+   Used by both the app and Alembic migrations.
 
-## 2. App — Fly.io
+## 2. App — Render
 
-1. Edit [fly.toml](fly.toml): set a unique `app` name and your `primary_region`
-   (`fly platform regions` lists them).
-2. Create the app: `fly apps create <your-app-name>`.
-3. Set secrets (never commit these):
-   ```bash
-   fly secrets set \
-     DATABASE_URL="postgresql+asyncpg://...neon.tech/DBNAME?ssl=require" \
-     OPENAI_API_KEY="sk-..." \
-     OPENAI_MODEL="gpt-4o-mini" \
-     AZURE_TRANSLATOR_KEY="" AZURE_TRANSLATOR_ENDPOINT="" AZURE_TRANSLATOR_REGION="" \
-     MAILGUN_API_KEY="..." MAILGUN_DOMAIN="..." MAILGUN_FROM_EMAIL="alerts@yourdomain" \
-     MONITORING_TOKEN="$(openssl rand -hex 24)"
-   ```
-   `MONITORING_ENABLED` and `MONITORING_CRON` are already set in `fly.toml`'s
-   `[env]`. Azure vars can stay empty (translation just no-ops).
-4. First deploy: `fly deploy`. The `[deploy] release_command` runs
-   `alembic upgrade head` against Neon before the app starts.
-5. `fly open` to hit `/health`, or `fly logs` to watch the scheduler start.
+Create the service from the blueprint: Render dashboard → **New → Blueprint** →
+pick this repo. [render.yaml](render.yaml) defines a free Python web service that
+installs with `pip install -e .` and starts with
+`alembic upgrade head && uvicorn …` (migrations run at start since the free tier
+has no pre-deploy hook).
 
-## 3. Continuous deployment — GitHub Actions
+Then set the secret env vars (dashboard → the service → **Environment**):
 
-- [.github/workflows/ci.yml](.github/workflows/ci.yml) runs ruff + pytest on every
-  push and PR.
-- [.github/workflows/deploy.yml](.github/workflows/deploy.yml) runs `fly deploy`
-  **after CI succeeds on `main`**.
-- Give it access once: create a deploy token with `fly tokens create deploy`, then
-  add it to the repo as the **`FLY_API_TOKEN`** GitHub Actions secret
-  (Settings → Secrets and variables → Actions).
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | the Neon URL from step 1 |
+| `OPENAI_API_KEY` | your OpenAI key (blank ⇒ no AI explanations) |
+| `MAILGUN_API_KEY` / `MAILGUN_DOMAIN` / `MAILGUN_FROM_EMAIL` | for alert emails |
+| `MONITORING_TOKEN` | `openssl rand -hex 24` — guards `/monitoring/run` |
 
-After that, every green push to `main` migrates + deploys automatically.
+`OPENAI_MODEL`, `MONITORING_ENABLED=false`, and the (blank) `AZURE_*` vars are
+already declared in `render.yaml`.
 
-## Monitoring in production
+## 3. GitHub Actions
 
-Because Fly keeps one machine always running (`min_machines_running = 1`,
-`auto_stop_machines = false`), the in-process APScheduler fires the watchdog on
-`MONITORING_CRON` (default daily 09:00 UTC) — no external cron needed. Enable
-Mailgun (the secrets above) so digests actually send. You can also trigger a
-sweep on demand:
-```bash
-curl -X POST https://<your-app>.fly.dev/monitoring/run \
-  -H "X-Monitoring-Token: $MONITORING_TOKEN"
-```
+Three workflows:
 
-> Cost note: an always-on `shared-cpu-1x` / 512 MB machine is inexpensive but may
-> exceed Fly's free allowance. If you'd rather let the machine auto-stop, set
-> `auto_stop_machines = true` / `min_machines_running = 0` and instead drive
-> monitoring from a scheduled GitHub Action that curls `/monitoring/run` (the
-> endpoint is built for exactly this).
+| Workflow | Trigger | Needs | Purpose |
+|----------|---------|-------|---------|
+| [ci.yml](.github/workflows/ci.yml) | push to main, PRs | — | ruff + pytest |
+| [deploy.yml](.github/workflows/deploy.yml) | after CI succeeds on main | secret `RENDER_DEPLOY_HOOK_URL` | trigger a Render deploy |
+| [monitoring.yml](.github/workflows/monitoring.yml) | daily 09:00 UTC (+ manual) | var `APP_URL`, secret `MONITORING_TOKEN` | wake the service, run the sweep |
+
+Set these in GitHub → **Settings → Secrets and variables → Actions**:
+
+- **Secret `RENDER_DEPLOY_HOOK_URL`** — Render dashboard → the service →
+  **Settings → Deploy Hook** → copy the URL. Deploy stays off on push
+  (`autoDeploy: false`), so this GitHub-Actions-after-CI path is the only deploy
+  trigger.
+- **Variable `APP_URL`** — your Render URL, e.g. `https://insight-engine.onrender.com`
+  (no trailing slash).
+- **Secret `MONITORING_TOKEN`** — the **same value** you set in Render, so the
+  cron's `X-Monitoring-Token` header matches.
+
+After that: push to `main` → CI runs → if green → Render deploys. The monitoring
+cron runs daily, waking the service (polls `/health` for up to ~5 min) before
+POSTing `/monitoring/run`.
+
+Trigger a sweep manually anytime: Actions tab → **Monitoring** → **Run workflow**.
 
 ## Notes
 
-- No CORS middleware is configured. If a browser frontend (Vestio) calls this API
-  directly, add `fastapi.middleware.cors.CORSMiddleware` with your frontend origin.
-- The single always-on machine means one scheduler instance — correct, no
-  duplicate alerts. If you scale to multiple machines, move monitoring to the
-  GitHub Action approach so it doesn't fire once per machine.
+- `MONITORING_CRON` in the app is unused on Render (the scheduler is off); change
+  the schedule in `monitoring.yml`'s `cron:` instead. It's **UTC**.
+- No CORS middleware is configured. If a browser frontend (Vestio) calls this API,
+  add `fastapi.middleware.cors.CORSMiddleware` with your frontend origin.
+- Prefer Render's own auto-deploy instead of the CI-gated hook? Set
+  `autoDeploy: true` in `render.yaml`, connect the repo in Render, and delete
+  `deploy.yml`. You lose the "don't deploy unless tests pass" guarantee.
