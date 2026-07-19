@@ -119,7 +119,7 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 ## Domain Concepts
 
 - **User:** Registered account (email/password). All portfolio/position/insight endpoints require `Authorization: Bearer <token>` from `POST /login`. `POST /profile/interpret` maps a plain-words description to a structured profile via AI (proposal only, never auto-applied).
-- **User Profile:** risk (low|moderate|high) + horizon (short|medium|long) + objective (growth|income|capital_protection). Modulates interpretation, not base rules. Note: objective currently only flavors AI text (see next_steps.md P4b).
+- **User Profile:** risk (low|moderate|high) + horizon (short|medium|long) + objective (growth|income|capital_protection). Modulates interpretation and scoring — objective adds an "objective fit" component to the Profile Fit Score and biases alternative ranking (see `business_rules.md` §9.3, §9.6).
 - **Position (Lot):** One purchase of a ticker (quantity, optional purchase price/date). Multiple lots per ticker allowed; analysis aggregates per ticker (summed quantity, weighted-average cost). CRUD via `/portfolio/positions/{id}`, no auto-analysis.
 - **Portfolio:** One per user. `POST /portfolio/analyze` analyzes stored positions (or syncs+analyzes a provided `assets` list — which **replaces** stored lots). Stores overall risk (value-weighted), summary, total value, and concentration. Insights are appended, never deleted — history via `GET /insights`.
 - **Insight:** The minimum unit of value—includes asset state, scenario, horizon, risks, explanation, plus optional scores, alternatives, and position context (weight, market value, unrealized gain/loss).
@@ -148,7 +148,7 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 - `domain_language.md` – Terminology definitions used consistently throughout the system
 - `mvp_scope.md` – MVP boundaries, assumptions, and success criteria
 - `architect_prompt.md` – Architectural specification and naming conventions
-- `next_steps.md` – Post-MVP roadmap (P1–P5 all delivered: multi-user persistence, position-aware analysis, sector benchmarks, candidate discovery, monitoring/alerts, goal-aware scoring, hardening) plus unscheduled nice-to-haves
+- `DEPLOY.md` – Deployment guide (Fly.io + Neon Postgres, GitHub Actions CI/CD)
 
 ## Naming Conventions
 
