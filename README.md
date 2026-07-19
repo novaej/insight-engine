@@ -85,4 +85,5 @@ Deploys are tag-based (push a `v*.*.*` tag → staging); see [DEPLOY.md](DEPLOY.
 
 ## License
 
-Private / experimental use.
+Proprietary — All Rights Reserved. See [LICENSE](LICENSE). Not licensed for use,
+copying, or distribution without written permission.
