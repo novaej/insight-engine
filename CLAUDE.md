@@ -16,8 +16,9 @@ InsightEngine is a backend MVP for personal investment portfolio analysis. It pr
 - **Validation:** Pydantic schemas
 - **AI:** OpenAI API (text explanations only—never raw market data)
 - **Translation:** Azure Translator (multi-language support for AI-generated text)
-- **Data:** External financial data APIs
-- **Scheduling:** Daily jobs for data updates
+- **Data:** External financial data APIs (Yahoo Finance)
+- **Email:** Mailgun (monitoring alert digests)
+- **Scheduling:** APScheduler (in-process monitoring watchdog; opt-in via `MONITORING_ENABLED`)
 
 ## Build & Development Commands
 
@@ -70,9 +71,9 @@ insight_engine/
 ├── api/          # FastAPI routes and endpoints
 ├── domain/       # Domain models and Pydantic schemas
 ├── rules/        # Deterministic business rules (no AI)
-├── services/     # Orchestration (analysis, alternatives, metrics, translation)
+├── services/     # Orchestration (analysis, alternatives, metrics, translation, monitoring, insight_store)
 ├── ai/           # LLM prompts and handlers (interpretation only)
-├── adapters/     # External integrations (Yahoo Finance, OpenAI, Azure)
+├── adapters/     # External integrations (Yahoo Finance + caching/retry, OpenAI, Azure, Mailgun)
 ├── jobs/         # CLI entrypoints (monitoring sweep)
 config/           # Static config (candidate_universe.json, benchmarks.json, discovery_etfs.json)
 tests/            # Unit tests (metrics, rules, endpoints, alternatives)
@@ -147,7 +148,7 @@ AI-generated text (scenario, explanation, risks, summary) can be translated into
 - `domain_language.md` – Terminology definitions used consistently throughout the system
 - `mvp_scope.md` – MVP boundaries, assumptions, and success criteria
 - `architect_prompt.md` – Architectural specification and naming conventions
-- `next_steps.md` – Prioritized post-MVP roadmap (multi-user persistence, position-aware analysis, sector benchmarks, monitoring/alerts)
+- `next_steps.md` – Post-MVP roadmap (P1–P5 all delivered: multi-user persistence, position-aware analysis, sector benchmarks, candidate discovery, monitoring/alerts, goal-aware scoring, hardening) plus unscheduled nice-to-haves
 
 ## Naming Conventions
 

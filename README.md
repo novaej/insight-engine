@@ -36,6 +36,7 @@ These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `
 - yfinance for market data
 - OpenAI API for text explanations
 - Azure Translator for multi-language support
+- Mailgun for email alerts + APScheduler for the monitoring watchdog
 - Alembic for migrations
 
 ## API Endpoints
@@ -52,6 +53,7 @@ These synthesize into a final asset state: `healthy`, `healthy_but_expensive`, `
 | PUT | `/portfolio` | ✓ | Replace assets and re-analyze |
 | GET | `/insights` | ✓ | Insight history (filter by ticker/date) |
 | POST | `/profile/interpret` | ✓ | Plain words → structured user profile (AI) |
+| POST | `/monitoring/run` | token | Run the change-detection sweep, email digests |
 | POST | `/assets/analyze` | — | Analyze a single ticker ad hoc |
 | GET | `/health` | — | Health check |
 
@@ -66,9 +68,11 @@ insight_engine/
 ├── services/        # Metrics, analysis orchestration, alternatives, translation
 ├── rules/           # Deterministic business rules + synthesis
 ├── ai/              # Prompt templates and LLM handlers
-├── adapters/        # Yahoo Finance, OpenAI, Azure Translator integrations
-└── jobs/            # Scheduled daily analysis
+├── adapters/        # Yahoo Finance (+ caching/retry), OpenAI, Azure, Mailgun
+└── jobs/            # Monitoring watchdog CLI entrypoint
 ```
+
+CI (`.github/workflows/ci.yml`) runs `ruff check` + `pytest` on every push and PR.
 
 ## MVP Constraints
 
