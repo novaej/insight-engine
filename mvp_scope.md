@@ -27,7 +27,7 @@ about a small portfolio, using deterministic rules and natural language.
 - REST API  
 - Python + FastAPI  
 - PostgreSQL  
-- Daily jobs  
+- Scheduled monitoring jobs (APScheduler) with Mailgun email alerts  
 - External APIs for financial data  
 - OpenAI API used only for textual explanation
 
